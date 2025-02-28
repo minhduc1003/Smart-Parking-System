@@ -79,8 +79,6 @@ struct PlateEntry {
   String type;
 };
 
-std::vector<PlateEntry> plateHistory;  // Vector to store the history of valid plates
-
 // Function to extract a JSON string value by key
 String extractJsonStringValue(const String& jsonString, const String& key) {
   int keyIndex = jsonString.indexOf(key);
@@ -575,7 +573,6 @@ int sendPhoto() {
       newEntry.plateNumber = recognizedPlate ;
       newEntry.time = currentTime;  // Use the current timestamp
       newEntry.type= "Entry";
-      plateHistory.push_back(newEntry);
       vehicalCount++;
       String data = recognizedPlate + "|" + currentTime;
      esp_err_t result = esp_now_send(receiverMac, (uint8_t*)data.c_str(), data.length());
@@ -594,9 +591,6 @@ int sendPhoto() {
     }
     http.end();
       openBarrier();
-      delay(barrierDelay);
-      closeBarrier();
-
       // Log response and return
       Serial.print("Response: ");
       Serial.println(response);
@@ -754,15 +748,7 @@ void loop() {
   }
 
   if (digitalRead(outSensor) == LOW && vehicalCount > 0) {
-    delay(2000);  // delay for vehicle need to be in a position
-
-    openBarrier();
-    PlateEntry newExit;
-    newExit.plateNumber = "NULL-Exit";
-    newExit.time = currentTime;  // Use the current timestamp
-    plateHistory.push_back(newExit);
     delay(barrierDelay);
-    vehicalCount--;
     closeBarrier();
 
     currentStatus = "Idle";

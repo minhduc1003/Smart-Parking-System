@@ -1,7 +1,33 @@
 "use client"
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 export default function Management() {
+  const [slotStatus, setSlotStatus] = useState([0, 0, 0]); // Initial state for parking slots
+
+useEffect(() => {
+  // Connect to WebSocket server
+  const ws = new WebSocket('ws://192.168.0.115:8080');
+
+  ws.onopen = () => {
+    console.log('Connected to WebSocket');
+  };
+
+  ws.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    if (message.type === 'slot-update') {
+      setSlotStatus(message.slots);
+    }
+  };
+
+  ws.onclose = () => {
+    console.log('Disconnected from WebSocket');
+  };
+
+  return () => {
+    ws.close(); // Clean up on component unmount
+  };
+}, []);
   return (
     <>
     <main className="min-h-screen p-4 sm:p-6 md:p-8 ">
@@ -26,14 +52,26 @@ export default function Management() {
           Parking Status
         </h2>
         <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6 lg:gap-8">
-          {Array.from({ length: 6 }).map((_, i) => (
-        <div 
-          key={i} 
-          className="bg-gradient-to-br from-emerald-50 to-teal-50 p-3 sm:p-4 md:p-6 lg:p-8 rounded-xl sm:rounded-2xl text-center transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl border border-emerald-100"
-        >
-          <p className="font-bold text-gray-800 text-base sm:text-lg md:text-xl mb-1 sm:mb-2 md:mb-3">Slot {i + 1}</p>
-          <p className="text-xs sm:text-sm md:text-base font-medium text-emerald-600">Available</p>
-        </div>
+          {slotStatus.map((slot, i) => (
+              <div 
+                key={i} 
+                className={`p-3 sm:p-4 md:p-6 lg:p-8 rounded-xl sm:rounded-2xl text-center transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl border ${
+                  slot === 1 
+                  ? 'bg-gradient-to-br from-red-50 to-pink-50 border-red-100' 
+                  : 'bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100'
+                }`}
+              >
+                <p className="font-bold text-gray-800 text-base sm:text-lg md:text-xl mb-1 sm:mb-2 md:mb-3">
+                  Slot {i + 1}
+                </p>
+                <p className={`text-xs sm:text-sm md:text-base font-medium ${
+                  slot === 1 
+                  ? 'text-red-600' 
+                  : 'text-emerald-600'
+                }`}>
+                  {slot === 1 ? 'Occupied' : 'Available'}
+                </p>
+              </div>
           ))}
         </div>
       </motion.div>

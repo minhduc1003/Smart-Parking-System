@@ -1,37 +1,3 @@
-/*
- * Smart Parking System using ESP32-CAM
- * 
- * Features:
- * - WiFi connectivity for communication with a remote server.
- * - Secure HTTPS communication with the server using WiFiClientSecure.
- * - Camera functionality to capture images for license plate recognition.
- * - Integration with an NTP server for accurate timekeeping in Indian Standard Time (IST).
- * - Real-time web server interface for monitoring parking system status.
- * - Web page displays real-time information including current time, parking status, and captured images.
- * - Image capture triggered by a POST request from the web interface.
- * - Image upload to a remote server with automatic handling of responses.
- * - Servo motor control to open and close the parking barrier based on vehicle entry/exit.
- * - Detection of vehicle entry and exit using GPIO sensors.
- * - Dynamic update of available parking spaces based on vehicle count.
- * - Logging of valid number plates with timestamps for parking history.
- * 
- * Working:
- * 1. Connects to a specified WiFi network.
- * 2. Initializes and configures the camera.
- * 3. Sets up and starts a web server to handle client requests.
- * 4. Establishes an NTP client to get the current time.
- * 5. Continuously updates the web server with real-time status and parking information.
- * 6. Handles image capture and upload when a POST request is received from the web interface.
- * 7. Updates parking space availability and history based on the recognition results.
- * 8. Controls the parking barrier using a servo motor, based on vehicle detection by sensors.
- * 9. Provides a web interface that refreshes periodically to display updated information.
- * 
- * Note:
- * - Replace placeholders for WiFi credentials, server details, and API keys with actual values.
- * - Ensure proper handling of HTTPS certificates and security measures for production use.
- */
-
-// Libraries for WiFi, Secure Client, and Camera functionalities
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -47,6 +13,7 @@
 #include "fb_gfx.h"
 #include "esp_http_server.h"
 #include <esp_now.h>
+#include <WebServer.h>
 // WiFi credentials and server information
 const char* ssid = "tang2-2.4";             // Replace xxx with your WiFi SSID
 const char* password = "23102003";          // Replace xxx with your WiFi Password
@@ -57,9 +24,9 @@ String apiKey = "QGPtHPHPVP1l";                   // Replace xxx with your API k
 String imageViewLink = "https://www.circuitdigest.cloud/static/" + apiKey + ".jpeg";
 #define flashLight 4  // GPIO pin for the flashlight
 int count = 0;        // Counter for image uploads
-
 WiFiClientSecure client;  // Secure client for HTTPS communication
 HTTPClient http;
+WebServer server(80);
 String serverResponse = "http://192.168.0.115:3000/get-in";  // Variable to store server response
 uint8_t receiverMac[] = {0xDC, 0x4F, 0x22, 0x31, 0xBE, 0x63};
 // Camera GPIO pins - adjust based on your ESP32-CAM board
@@ -80,6 +47,8 @@ uint8_t receiverMac[] = {0xDC, 0x4F, 0x22, 0x31, 0xBE, 0x63};
 #define HREF_GPIO_NUM 23
 #define PCLK_GPIO_NUM 22
 #define PART_BOUNDARY "123456789000000000000987654321"
+#define APP_CPU 1
+#define PRO_CPU 0
 // Network Time Protocol (NTP) setup
 const char* ntpServer = "pool.ntp.org";  // NTP server
 const long utcOffsetInSeconds = 19800;   // IST offset (UTC + 5:30)
@@ -88,12 +57,10 @@ int inSensor = 13;                     // GPIO pin for the entry sensor
 int outSensor = 15;                    // GPIO pin for the exit sensor
 Servo myservo;                         // Servo object
 int pos = 0;                           // Variable to hold servo position
-
 // Initialize the NTPClient
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, ntpServer, utcOffsetInSeconds);
 String currentTime = "";
-
 // Web server on port 80
 
 // Variables to hold recognized data, current status, and history
@@ -130,92 +97,342 @@ String extractJsonStringValue(const String& jsonString, const String& key) {
 
   return jsonString.substring(startIndex, endIndex);
 }
+// ===== rtos task handles =========================
+// Streaming is implemented with 3 tasks:
+TaskHandle_t tMjpeg;   // handles client connections to the webserver
+TaskHandle_t tCam;     // handles getting picture frames from the camera and storing them locally
+TaskHandle_t tStream;  // actually streaming frames to all connected clients
+
+// frameSync semaphore is used to prevent streaming buffer as it is replaced with the next frame
+SemaphoreHandle_t frameSync = NULL;
+
+// Queue stores currently connected clients to whom we are streaming
+QueueHandle_t streamingClients = NULL;
+
+// We will try to achieve 25 FPS frame rate
+const int FPS = 10;
+
+// We will handle web client requests every 50 ms (20 Hz)
+const int WSINTERVAL = 100;
+
+
+// ======== Server Connection Handler Task ==========================
+void mjpegCB(void* pvParameters) {
+  TickType_t xLastWakeTime;
+  const TickType_t xFrequency = pdMS_TO_TICKS(WSINTERVAL);
+
+  // Creating frame synchronization semaphore and initializing it
+  frameSync = xSemaphoreCreateBinary();
+  xSemaphoreGive( frameSync );
+
+  // Creating a queue to track all connected clients
+  streamingClients = xQueueCreate( 10, sizeof(WiFiClient*) );
+
+  //=== setup section  ==================
+
+  //  Creating RTOS task for grabbing frames from the camera
+  xTaskCreatePinnedToCore(
+    camCB,        // callback
+    "cam",        // name
+    4096,         // stacj size
+    NULL,         // parameters
+    2,            // priority
+    &tCam,        // RTOS task handle
+    APP_CPU);     // core
+
+  //  Creating task to push the stream to all connected clients
+  xTaskCreatePinnedToCore(
+    streamCB,
+    "strmCB",
+    4 * 1024,
+    NULL, //(void*) handler,
+    2,
+    &tStream,
+    APP_CPU);
+
+  //  Registering webserver handling routines
+  server.on("/mjpeg/1", HTTP_GET, handleJPGSstream);
+  server.on("/jpg", HTTP_GET, handleJPG);
+  server.onNotFound(handleNotFound);
+
+  //  Starting webserver
+  server.begin();
+
+  //=== loop() section  ===================
+  xLastWakeTime = xTaskGetTickCount();
+  for (;;) {
+    server.handleClient();
+
+    //  After every server client handling request, we let other tasks run and then pause
+    taskYIELD();
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+  }
+}
+
+
+// Commonly used variables:
+volatile size_t camSize;    // size of the current frame, byte
+volatile char* camBuf;      // pointer to the current frame
+
+
+// ==== RTOS task to grab frames from the camera =========================
+void camCB(void* pvParameters) {
+
+  TickType_t xLastWakeTime;
+
+  //  A running interval associated with currently desired frame rate
+  const TickType_t xFrequency = pdMS_TO_TICKS(1000 / FPS);
+
+  // Mutex for the critical section of swithing the active frames around
+  portMUX_TYPE xSemaphore = portMUX_INITIALIZER_UNLOCKED;
+
+  //  Pointers to the 2 frames, their respective sizes and index of the current frame
+  char* fbs[2] = { NULL, NULL };
+  size_t fSize[2] = { 0, 0 };
+  int ifb = 0;
+
+  //=== loop() section  ===================
+  xLastWakeTime = xTaskGetTickCount();
+for (;;) {
+    // Grab a frame from the camera and query its size
+    camera_fb_t* fb = esp_camera_fb_get();
+    if (!fb) {
+      Serial.println("Camera capture failed");
+      continue;
+    }
+
+    // If frame size is more than we have previously allocated - request 125% of the current frame space
+    if (fb->len > fSize[ifb]) {
+      fSize[ifb] = fb->len * 4 / 3;
+      fbs[ifb] = (char*) realloc(fbs[ifb], fSize[ifb]);
+    }
+
+    // Copy current frame into local buffer
+    memcpy(fbs[ifb], fb->buf, fb->len);
+
+    // Release the frame buffer
+    esp_camera_fb_return(fb);
+
+    // Notify streaming task that the frame is available
+    xTaskNotify(tStream, 0, eNoAction);
+
+    // Let other tasks run and wait until the end of the current frame rate interval (if any time left)
+    taskYIELD();
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+
+    // Only switch frames around if no frame is currently being streamed to a client
+    // Wait on a semaphore until client operation completes
+    xSemaphoreTake(frameSync, portMAX_DELAY);
+
+    // Do not allow interrupts while switching the current frame
+    portENTER_CRITICAL(&xSemaphore);
+    camBuf = fbs[ifb];
+    camSize = fSize[ifb];
+    ifb++;
+    ifb &= 1;  // this should produce 1, 0, 1, 0, 1 ... sequence
+    portEXIT_CRITICAL(&xSemaphore);
+
+    // Let anyone waiting for a frame know that the frame is ready
+    xSemaphoreGive(frameSync);
+
+    // Immediately let other (streaming) tasks run
+    taskYIELD();
+
+    // If streaming task has suspended itself (no active clients to stream to)
+    // there is no need to grab frames from the camera. We can save some juice
+    // by suspending the tasks
+    if (eTaskGetState(tStream) == eSuspended) {
+      vTaskSuspend(NULL);  // passing NULL means "suspend yourself"
+    }
+  }
+ 
+}
+
+
+// ==== Memory allocator that takes advantage of PSRAM if present =======================
+char* allocateMemory(char* aPtr, size_t aSize) {
+
+  //  Since current buffer is too smal, free it
+  if (aPtr != NULL) free(aPtr);
+
+
+  size_t freeHeap = ESP.getFreeHeap();
+  char* ptr = NULL;
+
+  // If memory requested is more than 2/3 of the currently free heap, try PSRAM immediately
+  if ( aSize > freeHeap * 2 / 3 ) {
+    if ( psramFound() && ESP.getFreePsram() > aSize ) {
+      ptr = (char*) ps_malloc(aSize);
+    }
+  }
+  else {
+    //  Enough free heap - let's try allocating fast RAM as a buffer
+    ptr = (char*) malloc(aSize);
+
+    //  If allocation on the heap failed, let's give PSRAM one more chance:
+    if ( ptr == NULL && psramFound() && ESP.getFreePsram() > aSize) {
+      ptr = (char*) ps_malloc(aSize);
+    }
+  }
+
+  // Finally, if the memory pointer is NULL, we were not able to allocate any memory, and that is a terminal condition.
+  if (ptr == NULL) {
+    ESP.restart();
+  }
+  return ptr;
+}
+
+
+// ==== STREAMING ======================================================
+const char HEADER[] = "HTTP/1.1 200 OK\r\n" \
+                      "Access-Control-Allow-Origin: *\r\n" \
+                      "Content-Type: multipart/x-mixed-replace; boundary=123456789000000000000987654321\r\n";
+const char BOUNDARY[] = "\r\n--123456789000000000000987654321\r\n";
+const char CTNTTYPE[] = "Content-Type: image/jpeg\r\nContent-Length: ";
+const int hdrLen = strlen(HEADER);
+const int bdrLen = strlen(BOUNDARY);
+const int cntLen = strlen(CTNTTYPE);
+
+
+// ==== Handle connection request from clients ===============================
+void handleJPGSstream(void)
+{
+  //  Can only acommodate 10 clients. The limit is a default for WiFi connections
+  if ( !uxQueueSpacesAvailable(streamingClients) ) return;
+
+
+  //  Create a new WiFi Client object to keep track of this one
+  WiFiClient* client = new WiFiClient();
+  *client = server.client();
+
+  //  Immediately send this client a header
+  client->write(HEADER, hdrLen);
+  client->write(BOUNDARY, bdrLen);
+
+  // Push the client to the streaming queue
+  xQueueSend(streamingClients, (void *) &client, 0);
+
+  // Wake up streaming tasks, if they were previously suspended:
+  if ( eTaskGetState( tCam ) == eSuspended ) vTaskResume( tCam );
+  if ( eTaskGetState( tStream ) == eSuspended ) vTaskResume( tStream );
+}
+
+
+// ==== Actually stream content to all connected clients ========================
+void streamCB(void * pvParameters) {
+  char buf[16];
+  TickType_t xLastWakeTime;
+  TickType_t xFrequency;
+
+  //  Wait until the first frame is captured and there is something to send
+  //  to clients
+  ulTaskNotifyTake( pdTRUE,          /* Clear the notification value before exiting. */
+                    portMAX_DELAY ); /* Block indefinitely. */
+
+  xLastWakeTime = xTaskGetTickCount();
+  for (;;) {
+    // Default assumption we are running according to the FPS
+    xFrequency = pdMS_TO_TICKS(1000 / FPS);
+
+    //  Only bother to send anything if there is someone watching
+    UBaseType_t activeClients = uxQueueMessagesWaiting(streamingClients);
+    if ( activeClients ) {
+      // Adjust the period to the number of connected clients
+      xFrequency /= activeClients;
+
+      //  Since we are sending the same frame to everyone,
+      //  pop a client from the the front of the queue
+      WiFiClient *client;
+      xQueueReceive (streamingClients, (void*) &client, 0);
+
+      //  Check if this client is still connected.
+
+      if (!client->connected()) {
+        //  delete this client reference if s/he has disconnected
+        //  and don't put it back on the queue anymore. Bye!
+        delete client;
+      }
+      else {
+
+        //  Ok. This is an actively connected client.
+        //  Let's grab a semaphore to prevent frame changes while we
+        //  are serving this frame
+        xSemaphoreTake( frameSync, portMAX_DELAY );
+
+        client->write(CTNTTYPE, cntLen);
+        sprintf(buf, "%d\r\n\r\n", camSize);
+        client->write(buf, strlen(buf));
+        client->write((char*) camBuf, (size_t)camSize);
+        client->write(BOUNDARY, bdrLen);
+
+        // Since this client is still connected, push it to the end
+        // of the queue for further processing
+        xQueueSend(streamingClients, (void *) &client, 0);
+
+        //  The frame has been served. Release the semaphore and let other tasks run.
+        //  If there is a frame switch ready, it will happen now in between frames
+        xSemaphoreGive( frameSync );
+        taskYIELD();
+      }
+    }
+    else {
+      //  Since there are no connected clients, there is no reason to waste battery running
+      vTaskSuspend(NULL);
+    }
+    //  Let other tasks run after serving every client
+    taskYIELD();
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
+  }
+}
+
+
+
+const char JHEADER[] = "HTTP/1.1 200 OK\r\n" \
+                       "Content-disposition: inline; filename=capture.jpg\r\n" \
+                       "Content-type: image/jpeg\r\n\r\n";
+const int jhdLen = strlen(JHEADER);
+
+// ==== Serve up one JPEG frame =============================================
+void handleJPG(void)
+{
+
+  WiFiClient client = server.client();
+
+  if (!client.connected()) return;
+  camera_fb_t* fb = esp_camera_fb_get();
+  if (!fb) {
+    Serial.println("Camera capture failed");
+    return;
+  }
+  client.write(JHEADER, jhdLen);
+  client.write((char*)fb->buf, fb->len);
+  esp_camera_fb_return(fb);
+}
+
+
+// ==== Handle invalid URL requests ============================================
+void handleNotFound()
+{
+  String message = "Server is running!\n\n";
+  message += "URI: ";
+  message += server.uri();
+  message += "\nMethod: ";
+  message += (server.method() == HTTP_GET) ? "GET" : "POST";
+  message += "\nArguments: ";
+  message += server.args();
+  message += "\n";
+  server.send(200, "text / plain", message);
+}
+
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Sent successfully" : "Failed");
 }
 // Function to handle the root web page
 
-static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
-static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
-static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
-httpd_handle_t stream_httpd = NULL;
 
-static esp_err_t stream_handler(httpd_req_t *req){
-  camera_fb_t * fb = NULL;
-  esp_err_t res = ESP_OK;
-  size_t _jpg_buf_len = 0;
-  uint8_t * _jpg_buf = NULL;
-  char * part_buf[64];
 
-  res = httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
-  if(res != ESP_OK){
-    return res;
-  }
 
-  while(true){
-    fb = esp_camera_fb_get();
-    if (!fb) {
-      Serial.println("Camera capture failed");
-      res = ESP_FAIL;
-    } else {
-      if(fb->width > 230){
-        if(fb->format != PIXFORMAT_JPEG){
-          bool jpeg_converted = frame2jpg(fb, 80, &_jpg_buf, &_jpg_buf_len);
-          esp_camera_fb_return(fb);
-          fb = NULL;
-          if(!jpeg_converted){
-            Serial.println("JPEG compression failed");
-            res = ESP_FAIL;
-          }
-        } else {
-          _jpg_buf_len = fb->len;
-          _jpg_buf = fb->buf;
-        }
-      }
-    }
-    if(res == ESP_OK){
-      size_t hlen = snprintf((char *)part_buf, 64, _STREAM_PART, _jpg_buf_len);
-      res = httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
-    }
-    if(res == ESP_OK){
-      res = httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len);
-    }
-    if(res == ESP_OK){
-      res = httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
-    }
-    if(fb){
-      esp_camera_fb_return(fb);
-      fb = NULL;
-      _jpg_buf = NULL;
-    } else if(_jpg_buf){
-      free(_jpg_buf);
-      _jpg_buf = NULL;
-    }
-    if(res != ESP_OK){
-      break;
-    }
-    //Serial.printf("MJPG: %uB\n",(uint32_t)(_jpg_buf_len));
-  }
-  return res;
-}
-
-void startCameraServer(){
-  httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-  config.server_port = 80;
-
-  httpd_uri_t index_uri = {
-    .uri       = "/",
-    .method    = HTTP_GET,
-    .handler   = stream_handler,
-    .user_ctx  = NULL
-  };
-  
-  //Serial.printf("Starting web server on port: '%d'\n", config.server_port);
-  if (httpd_start(&stream_httpd, &config) == ESP_OK) {
-    httpd_register_uri_handler(stream_httpd, &index_uri);
-  }
-}
 // Function to handle image capture trigger
 void handleTrigger() {
   currentStatus = "Capturing Image";
@@ -254,17 +471,12 @@ void closeBarrier() {
 
 // Function to capture and send photo to the server
 int sendPhoto() {
-   Serial.println("capture");
-    if (stream_httpd) {
-    httpd_stop(stream_httpd);
-    stream_httpd = NULL;
-    Serial.println("Camera server stopped for image capture");
-  }
   camera_fb_t* fb = NULL;
 
   // Turn on flashlight and capture image
   // digitalWrite(flashLight, HIGH);
-
+    if (tStream != NULL) vTaskSuspend(tStream);
+  if (tCam != NULL) vTaskSuspend(tCam);
   delay(300);
   fb = esp_camera_fb_get();
   delay(300);
@@ -390,7 +602,8 @@ int sendPhoto() {
       Serial.println(response);
       client.stop();
       esp_camera_fb_return(fb);
-      startCameraServer();
+            if (tStream != NULL) vTaskResume(tStream);
+      if (tCam != NULL) vTaskResume(tCam);
       return 0;
 
     } else {
@@ -400,7 +613,8 @@ int sendPhoto() {
       Serial.println(response);
       client.stop();
       esp_camera_fb_return(fb);
-      startCameraServer();
+            if (tStream != NULL) vTaskResume(tStream);
+      if (tCam != NULL) vTaskResume(tCam);
       return 2;
     }
 
@@ -408,7 +622,8 @@ int sendPhoto() {
   } else {
     Serial.println("Connection to server failed");
     esp_camera_fb_return(fb);
-    startCameraServer();
+          if (tStream != NULL) vTaskResume(tStream);
+      if (tCam != NULL) vTaskResume(tCam);
     return -2;
   }
 }
@@ -468,13 +683,15 @@ void setup() {
   // Adjust frame size and quality based on PSRAM availability
   if (psramFound()) {
     config.frame_size = FRAMESIZE_HVGA;
-    config.jpeg_quality = 5;  // Lower number means higher quality (0-63)
+    config.jpeg_quality = 10;  // Lower number means higher quality (0-63)
     config.fb_count = 2;
+    config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
     Serial.println("PSRAM found");
   } else {
-    config.frame_size = FRAMESIZE_HQVGA;
+    config.frame_size = FRAMESIZE_QVGA;
     config.jpeg_quality = 12;  // Lower number means higher quality (0-63)
     config.fb_count = 1;
+    config.grab_mode = CAMERA_GRAB_LATEST;
   }
 
   // Initialize camera
@@ -511,7 +728,14 @@ void setup() {
   myservo.attach(servoPin, 1000, 2000);  // attaches the servo on pin 18 to the servo object
     // Set the initial position of the servo (barrier closed)
   myservo.write(180);
-    startCameraServer();
+ xTaskCreatePinnedToCore(
+    mjpegCB,
+    "mjpeg",
+    4 * 1024,
+    NULL,
+    2,
+    &tMjpeg,
+    APP_CPU);
 }
 
 void loop() {
