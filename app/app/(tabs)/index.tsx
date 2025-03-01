@@ -1,74 +1,142 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import { Image, StyleSheet, Platform, View } from "react-native";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { HelloWave } from "@/components/HelloWave";
+import ParallaxScrollView from "@/components/ParallaxScrollView";
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
+import { useState } from "react";
 
 export default function HomeScreen() {
+  const [isLightOn, setIsLightOn] = useState(false);
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <>
+      <View style={styles.container}>
+        <ThemedView style={{ flex: 1, padding: 16 }}>
+          <ThemedView style={styles.cameraGrid}>
+            <ThemedView style={styles.cameraCard}>
+              <ThemedText style={styles.cameraTitle}>Live Feed</ThemedText>
+              <ThemedView style={styles.cameraView}>
+                <Image
+                  source={require("@/assets/images/partial-react-logo.png")}
+                  style={styles.cameraImage}
+                  resizeMode="cover"
+                />
+              </ThemedView>
+              <ThemedView style={styles.infoSection}>
+                <ThemedText style={styles.infoTitle}>Smart Control</ThemedText>
+                <ThemedView
+                  style={[
+                    styles.licensePlateContainer,
+                    {
+                      transform: [{ scale: 1.02 }],
+                      shadowColor: isLightOn ? "#059669" : "#DC2626",
+                      shadowOpacity: 0.2,
+                      shadowRadius: 8,
+                      shadowOffset: { width: 0, height: 4 },
+                      backgroundColor: isLightOn
+                        ? "rgba(209, 250, 229, 0.9)"
+                        : "rgba(254, 202, 202, 0.9)",
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    onPress={() => {
+                      setIsLightOn(!isLightOn);
+                      console.log("Toggle light:", !isLightOn);
+                    }}
+                    style={[
+                      styles.licensePlateText,
+                      {
+                        textAlign: "center",
+                        textTransform: "uppercase",
+                        letterSpacing: 1,
+                        color: isLightOn ? "#059669" : "#DC2626",
+                      },
+                    ]}
+                  >
+                    Light {isLightOn ? "On" : "Off"}
+                  </ThemedText>
+                </ThemedView>
+              </ThemedView>
+            </ThemedView>
+          </ThemedView>
+        </ThemedView>
+      </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  cameraGrid: {
+    flexDirection: "row",
+    gap: 24,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  cameraCard: {
+    flex: 1,
+    borderRadius: 20,
+    padding: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  cameraTitle: {
+    fontSize: 25,
+    fontWeight: "800",
+    color: "#059669",
+    marginBottom: 16,
+    letterSpacing: 0.5,
+    marginTop: 30,
+  },
+  cameraView: {
+    height: 340,
+    borderRadius: 16,
+    overflow: "hidden",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  cameraImage: {
+    flex: 1,
+  },
+  infoSection: {
+    marginTop: 24,
+    gap: 16,
+  },
+  infoTitle: {
+    fontSize: 25,
+    fontWeight: "700",
+    color: "#10B981",
+    letterSpacing: 0.5,
+  },
+  licensePlateContainer: {
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.2)",
+  },
+  licensePlateText: {
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+    color: "#047857",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
