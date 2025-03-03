@@ -5,9 +5,13 @@ import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useState } from "react";
+import { useRouter } from "expo-router";
 
 export default function HomeScreen() {
   const [isLightOn, setIsLightOn] = useState(false);
+
+  const router = useRouter();
+
   return (
     <>
       <View style={styles.container}>
@@ -41,6 +45,8 @@ export default function HomeScreen() {
                 >
                   <ThemedText
                     onPress={() => {
+                      router.push("/login"); // ✅ Instead of router.push("(auth)")
+
                       setIsLightOn(!isLightOn);
                       console.log("Toggle light:", !isLightOn);
                     }}
