@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,11 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useDispatch, useSelector } from "react-redux";
+import { loginAction } from "@/redux/reduxActions/userAction";
+import { userSelector } from "@/redux/selectors/userSelector";
+import axios from "axios";
+import * as SecureStore from "expo-secure-store";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -24,15 +29,23 @@ export default function LoginScreen() {
   const navigation = useNavigation<any>();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
-
-  const handleLogin = () => {
-    // Add your login logic here
-    console.log("Login attempt with:", email, password);
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "(tabs)" }],
-    });
+  const user = useSelector(userSelector);
+  const dispatch = useDispatch();
+  const handleLogin = async () => {
+    dispatch(loginAction(email, password));
+    // navigation.reset({
+    //   index: 0,
+    //   routes: [{ name: "(tabs)" }],
+    // });
   };
+  const getTokens = async () => {
+    const token = await SecureStore.getItemAsync("secure_token");
+    console.log(token);
+  };
+  useEffect(() => {
+    console.log(user);
+    getTokens();
+  }, [user]);
 
   const handleSignup = () => {
     navigation.reset({
