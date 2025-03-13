@@ -16,53 +16,134 @@ export default function HomeScreen() {
     <>
       <View style={styles.container}>
         <ThemedView style={{ flex: 1, padding: 16 }}>
-          <ThemedView style={styles.cameraGrid}>
-            <ThemedView style={styles.cameraCard}>
-              <ThemedText style={styles.cameraTitle}>Live Feed</ThemedText>
-              <ThemedView style={styles.cameraView}>
-                <Image
-                  source={require("@/assets/images/partial-react-logo.png")}
-                  style={styles.cameraImage}
-                  resizeMode="cover"
-                />
-              </ThemedView>
-              <ThemedView style={styles.infoSection}>
-                <ThemedText style={styles.infoTitle}>Smart Control</ThemedText>
-                <ThemedView
+          {/* User and Plate Information Section */}
+          <ThemedView style={styles.infoSection}>
+            <ThemedView style={{ flexDirection: "row", alignItems: "center" }}>
+              <HelloWave />
+              <ThemedText style={styles.infoTitle}> Welcome back</ThemedText>
+            </ThemedView>
+            <ThemedView style={styles.licensePlateContainer}>
+              <ThemedText style={styles.licensePlateText}>
+                PLATE: ABC-1234
+              </ThemedText>
+              <ThemedText style={[styles.licensePlateText, { marginTop: 8 }]}>
+                USER: John Doe
+              </ThemedText>
+            </ThemedView>
+          </ThemedView>
+
+          {/* Binance Withdrawal Section */}
+          <ThemedView style={styles.infoSection}>
+            <ThemedView
+              style={[
+                styles.licensePlateContainer,
+                {
+                  backgroundColor: "rgba(16, 185, 129, 0.1)",
+                  borderColor: "rgba(16, 185, 129, 0.3)",
+                  marginBottom: 16,
+                },
+              ]}
+            >
+              <ThemedText
+                style={[
+                  styles.licensePlateText,
+                  {
+                    textAlign: "center",
+                    fontSize: 18,
+                    marginBottom: 8,
+                  },
+                ]}
+              >
+                Account Balance
+              </ThemedText>
+              <ThemedText
+                style={{
+                  textAlign: "center",
+                  color: "#047857",
+                  fontSize: 24,
+                  fontWeight: "700",
+                  marginBottom: 8,
+                }}
+              >
+                $250.00
+              </ThemedText>
+            </ThemedView>
+
+            <ThemedView style={{ flexDirection: "row", gap: 16 }}>
+              {/* Deposit Option */}
+              <ThemedView
+                style={[
+                  styles.licensePlateContainer,
+                  {
+                    flex: 1,
+                    backgroundColor: "rgba(16, 185, 129, 0.1)",
+                    borderColor: "rgba(16, 185, 129, 0.3)",
+                  },
+                ]}
+              >
+                <ThemedText
+                  onPress={() => {
+                    router.push("/deposit");
+                    console.log("Processing deposit");
+                  }}
                   style={[
-                    styles.licensePlateContainer,
+                    styles.licensePlateText,
                     {
-                      transform: [{ scale: 1.02 }],
-                      shadowColor: isLightOn ? "#059669" : "#DC2626",
-                      shadowOpacity: 0.2,
-                      shadowRadius: 8,
-                      shadowOffset: { width: 0, height: 4 },
-                      backgroundColor: isLightOn
-                        ? "rgba(209, 250, 229, 0.9)"
-                        : "rgba(254, 202, 202, 0.9)",
+                      textAlign: "center",
+                      color: "#047857",
+                      marginBottom: 8,
                     },
                   ]}
                 >
-                  <ThemedText
-                    onPress={() => {
-                      router.push("/login"); // ✅ Instead of router.push("(auth)")
+                  Deposit Funds
+                </ThemedText>
+                <ThemedText
+                  style={{
+                    textAlign: "center",
+                    color: "#047857",
+                    fontSize: 14,
+                  }}
+                >
+                  Add money
+                </ThemedText>
+              </ThemedView>
 
-                      setIsLightOn(!isLightOn);
-                      console.log("Toggle light:", !isLightOn);
-                    }}
-                    style={[
-                      styles.licensePlateText,
-                      {
-                        textAlign: "center",
-                        textTransform: "uppercase",
-                        letterSpacing: 1,
-                        color: isLightOn ? "#059669" : "#DC2626",
-                      },
-                    ]}
-                  >
-                    Light {isLightOn ? "On" : "Off"}
-                  </ThemedText>
-                </ThemedView>
+              {/* Withdraw Option */}
+              <ThemedView
+                style={[
+                  styles.licensePlateContainer,
+                  {
+                    flex: 1,
+                    backgroundColor: "rgba(247, 223, 30, 0.1)",
+                    borderColor: "rgba(247, 223, 30, 0.3)",
+                  },
+                ]}
+              >
+                <ThemedText
+                  onPress={() => {
+                    router.push("/withdraw");
+                    console.log("Processing withdrawal");
+                  }}
+                  style={[
+                    styles.licensePlateText,
+                    {
+                      textAlign: "center",
+                      color: "#B8860B",
+                      marginBottom: 8,
+                    },
+                  ]}
+                >
+                  Withdraw Funds
+                </ThemedText>
+                <ThemedText
+                  style={{
+                    textAlign: "center",
+                    color: "#047857",
+                    fontSize: 14,
+                  }}
+                >
+                  Transfer to bank
+                </ThemedText>
               </ThemedView>
             </ThemedView>
           </ThemedView>
@@ -76,61 +157,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  cameraGrid: {
-    flexDirection: "row",
-    gap: 24,
-  },
-  cameraCard: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  cameraTitle: {
-    fontSize: 25,
-    fontWeight: "800",
-    color: "#059669",
-    marginBottom: 16,
-    letterSpacing: 0.5,
-    marginTop: 30,
-  },
-  cameraView: {
-    height: 340,
-    borderRadius: 16,
-    overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  cameraImage: {
-    flex: 1,
-  },
+
   infoSection: {
-    marginTop: 24,
+    marginTop: 50,
     gap: 16,
   },
   infoTitle: {
     fontSize: 25,
-    fontWeight: "700",
-    color: "#10B981",
+    fontWeight: "bold",
+    color: "#000000",
     letterSpacing: 0.5,
   },
   licensePlateContainer: {

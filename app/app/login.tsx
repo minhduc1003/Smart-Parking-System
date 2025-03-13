@@ -33,10 +33,11 @@ export default function LoginScreen() {
   const dispatch = useDispatch();
   const handleLogin = async () => {
     dispatch(loginAction(email, password));
-    // navigation.reset({
-    //   index: 0,
-    //   routes: [{ name: "(tabs)" }],
-    // });
+    console.log("asda");
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "(tabs)" }],
+    });
   };
   const getTokens = async () => {
     const token = await SecureStore.getItemAsync("secure_token");

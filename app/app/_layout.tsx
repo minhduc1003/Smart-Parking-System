@@ -41,6 +41,8 @@ export default function RootLayout() {
         <Stack initialRouteName="login">
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="signup" options={{ headerShown: false }} />
+          <Stack.Screen name="deposit" options={{ headerShown: false }} />
+          <Stack.Screen name="withdraw" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="+not-found" />
         </Stack>

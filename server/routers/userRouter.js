@@ -7,13 +7,16 @@ const {
   loginStatus,
   sendTokenWhenForgotPass,
   changePasswordWhenForgotPass,
+  depositToAccount,
+  withdrawFromAccount,
 } = require("../controllers/user");
 const router = express.Router();
 router.post("/register", userRegister);
 router.post("/login", userLogin);
 router.get("/logout", userLogout);
 router.get("/getUser", getUser);
-
+router.post("/deposit", depositToAccount);
+router.post("/withdraw", withdrawFromAccount);
 router.get("/loggedin", loginStatus);
 router.post("/forgotpassword", sendTokenWhenForgotPass);
 router.put("/forgotpassword/:resetToken", changePasswordWhenForgotPass);

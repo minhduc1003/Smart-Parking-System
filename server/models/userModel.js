@@ -25,10 +25,9 @@ const userSchema = mongoose.Schema(
       type: String,
       required: [true, "require"],
     },
-    role: {
-      type: String,
-      enum: ["user", "admin"],
-      default: "user",
+    money: {
+      type: Number,
+      default: 0,
     },
   },
   {

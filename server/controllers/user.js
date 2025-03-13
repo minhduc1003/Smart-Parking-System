@@ -36,12 +36,11 @@ const userRegister = asyncHandler(async (req, res) => {
     name,
     email,
     numberPlate,
-    role: "user",
   });
   const token = genrateToken(user._id);
   if (user) {
     res.status(201);
-    const { _id, name, email } = user;
+    const { _id, name, email, numberPlate, money } = user;
     res.cookie("token", token, {
       path: "/",
       httpOnly: false,
@@ -54,7 +53,7 @@ const userRegister = asyncHandler(async (req, res) => {
       name,
       email,
       numberPlate,
-      role: "user",
+      money,
       token,
     });
   } else {
@@ -92,13 +91,13 @@ const userLogin = asyncHandler(async (req, res) => {
   });
   const passwordIsCorrect = await bcrypt.compare(password, user.password);
   if (user && passwordIsCorrect) {
-    const { _id, name, email, role, numberPlate } = user;
+    const { _id, name, email, numberPlate, money } = user;
     res.json({
       _id,
       name,
       email,
       token,
-      role,
+      money,
       numberPlate,
     });
   } else {
@@ -120,18 +119,81 @@ const getUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
   if (user) {
     res.status(201);
-    const { _id, name, email, role, numberPlate } = user;
+    const { _id, name, email, numberPlate, money } = user;
     res.json({
       _id,
       name,
       email,
-      role,
+      money,
       numberPlate,
     });
   } else {
     res.status(500);
     throw new Error("error");
   }
+});
+const depositToAccount = asyncHandler(async (req, res) => {
+  const { userId, amount } = req.body;
+
+  if (!userId || !amount) {
+    res.status(400);
+    throw new Error("Please provide userId and amount");
+  }
+
+  const depositAmount = parseFloat(amount);
+  if (isNaN(depositAmount) || depositAmount <= 0) {
+    res.status(400);
+    throw new Error("Amount must be a positive number");
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  user.money = (user.money || 0) + depositAmount;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Deposit successful",
+    currentBalance: user.money,
+  });
+});
+const withdrawFromAccount = asyncHandler(async (req, res) => {
+  const { userId, amount } = req.body;
+
+  if (!userId || !amount) {
+    res.status(400);
+    throw new Error("Please provide userId and amount");
+  }
+
+  const withdrawAmount = parseFloat(amount);
+  if (isNaN(withdrawAmount) || withdrawAmount <= 0) {
+    res.status(400);
+    throw new Error("Amount must be a positive number");
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  if (user.money < withdrawAmount) {
+    res.status(400);
+    throw new Error("Insufficient funds");
+  }
+
+  user.money -= withdrawAmount;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Withdrawal successful",
+    currentBalance: user.money,
+  });
 });
 const loginStatus = (req, res) => {
   const token = req.cookies.token;
@@ -182,6 +244,7 @@ const sendTokenWhenForgotPass = asyncHandler(async (req, res) => {
   }
   res.send("reset password");
 });
+
 const changePasswordWhenForgotPass = asyncHandler(async (req, res) => {
   const { password, oldPassword } = req.body;
   const { resetToken } = req.params;
@@ -221,4 +284,6 @@ module.exports = {
   loginStatus,
   sendTokenWhenForgotPass,
   changePasswordWhenForgotPass,
+  depositToAccount,
+  withdrawFromAccount,
 };
