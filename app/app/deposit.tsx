@@ -9,24 +9,34 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useDispatch, useSelector } from "react-redux";
+import { depositAction } from "@/redux/reduxActions/userAction";
+import { userSelector } from "@/redux/selectors/userSelector";
+import ConfettiCannon from "react-native-confetti-cannon";
 
 const DepositScreen = () => {
   const [amount, setAmount] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [message, setMessage] = React.useState("");
+  const [fireworks, setFireworks] = React.useState(false);
   const router = useRouter();
-
+  const { user } = useSelector(userSelector);
+  const dispatch = useDispatch();
   const handleDeposit = async () => {
     if (!amount || isNaN(parseFloat(amount))) {
       setMessage("Please enter a valid amount");
       return;
     }
 
+    if (!user) {
+      setMessage("User information is missing");
+      return;
+    }
+
     setLoading(true);
     try {
-      // Replace with your actual deposit API call
-      // await depositFunds(parseFloat(amount));
-      setMessage("Deposit successful!");
+      dispatch(depositAction(user._id, parseFloat(amount)));
+      setFireworks(true);
       setAmount("");
     } catch (error) {
       setMessage("Failed to process deposit");
@@ -39,6 +49,29 @@ const DepositScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
+      {fireworks && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 999,
+          }}
+        >
+          <ConfettiCannon
+            count={100}
+            origin={{ x: -10, y: 0 }}
+            autoStart={true}
+            fadeOut={true}
+            explosionSpeed={550}
+            fallSpeed={2000}
+            colors={["#047857", "#10B981", "#34D399", "#A7F3D0", "#ECFDF5"]}
+            onAnimationEnd={() => setFireworks(false)}
+          />
+        </View>
+      )}
 
       <View style={styles.header}>
         <TouchableOpacity
@@ -49,13 +82,12 @@ const DepositScreen = () => {
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
       </View>
-
       <View style={styles.card}>
         <Text style={styles.title}>Deposit Funds</Text>
 
         <View style={styles.balanceContainer}>
           <Text style={styles.balanceLabel}>Current Balance</Text>
-          <Text style={styles.balanceAmount}>$250.00</Text>
+          <Text style={styles.balanceAmount}>{user?.money}</Text>
         </View>
 
         <View style={styles.inputContainer}>

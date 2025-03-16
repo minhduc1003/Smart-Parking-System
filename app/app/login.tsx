@@ -20,8 +20,6 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { useDispatch, useSelector } from "react-redux";
 import { loginAction } from "@/redux/reduxActions/userAction";
 import { userSelector } from "@/redux/selectors/userSelector";
-import axios from "axios";
-import * as SecureStore from "expo-secure-store";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -39,14 +37,6 @@ export default function LoginScreen() {
       routes: [{ name: "(tabs)" }],
     });
   };
-  const getTokens = async () => {
-    const token = await SecureStore.getItemAsync("secure_token");
-    console.log(token);
-  };
-  useEffect(() => {
-    console.log(user);
-    getTokens();
-  }, [user]);
 
   const handleSignup = () => {
     navigation.reset({
@@ -61,12 +51,8 @@ export default function LoginScreen() {
     subtitleColor: isDark ? "#a0a0a0" : "#666",
     inputBackground: isDark ? "#2a2a2a" : "#f9f9f9",
     inputBorder: isDark ? "#444" : "#e0e0e0",
-    primaryColor: isDark
-      ? "#10B981" // Clear, vibrant green for dark mode
-      : "#4ADE80", // Rich teal green for light mode
-    headerBackground: isDark
-      ? "#047857" // Deeper emerald for dark mode header
-      : "#059669", // Forest green for light mode header
+    primaryColor: isDark ? "#10B981" : "#4ADE80",
+    headerBackground: isDark ? "#047857" : "#059669",
   };
 
   return (

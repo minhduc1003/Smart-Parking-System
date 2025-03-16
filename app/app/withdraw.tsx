@@ -9,24 +9,32 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-
+import ConfettiCannon from "react-native-confetti-cannon";
+import { useDispatch, useSelector } from "react-redux";
+import { userSelector } from "@/redux/selectors/userSelector";
+import { withdrawAction } from "@/redux/reduxActions/userAction";
 const WithdrawScreen = () => {
   const [amount, setAmount] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [message, setMessage] = React.useState("");
+  const { user } = useSelector(userSelector);
+  const [fireworks, setFireworks] = React.useState(false);
   const router = useRouter();
+  const dispatch = useDispatch();
 
   const handleWithdraw = async () => {
     if (!amount || isNaN(parseFloat(amount))) {
       setMessage("Please enter a valid amount");
       return;
     }
-
+    if (!user) {
+      setMessage("User information is missing");
+      return;
+    }
     setLoading(true);
     try {
-      // Replace with your actual withdraw API call
-      // await withdrawFunds(parseFloat(amount));
-      setMessage("Withdrawal successful!");
+      dispatch(withdrawAction(user._id, parseFloat(amount)));
+      setFireworks(true);
       setAmount("");
     } catch (error) {
       setMessage("Failed to process withdrawal");
@@ -39,7 +47,29 @@ const WithdrawScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-
+      {fireworks && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 999,
+          }}
+        >
+          <ConfettiCannon
+            count={100}
+            origin={{ x: -10, y: 0 }}
+            autoStart={true}
+            fadeOut={true}
+            explosionSpeed={550}
+            fallSpeed={2000}
+            colors={["#047857", "#10B981", "#34D399", "#A7F3D0", "#ECFDF5"]}
+            onAnimationEnd={() => setFireworks(false)}
+          />
+        </View>
+      )}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -55,7 +85,7 @@ const WithdrawScreen = () => {
 
         <View style={styles.balanceContainer}>
           <Text style={styles.balanceLabel}>Current Balance</Text>
-          <Text style={styles.balanceAmount}>$250.00</Text>
+          <Text style={styles.balanceAmount}>{user?.money}</Text>
         </View>
 
         <View style={styles.inputContainer}>

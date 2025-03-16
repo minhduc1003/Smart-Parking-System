@@ -11,7 +11,10 @@ type AppState = ReturnType<typeof store.getState>;
 const sagaMiddleware = createSagaMiddleware();
 const store = configureStore({
   reducer: appReducer,
-  middleware: (gDM: any) => gDM().concat(sagaMiddleware),
+  middleware: (gDM: any) =>
+    gDM({
+      serializableCheck: false,
+    }).concat(sagaMiddleware),
 });
 sagaMiddleware.run(rootSaga);
 StoreRegistry.registerStore(store);

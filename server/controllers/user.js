@@ -7,9 +7,7 @@ const Token = require("../models/tokenModel");
 const sendEmail = require("../utils/sendEmail");
 const mongoose = require("mongoose");
 const genrateToken = (id) => {
-  return jwt.sign({ id }, "hihihaha", {
-    expiresIn: "1d",
-  });
+  return jwt.sign({ id }, process.env.JWT_SECRETOKEN || "hihihaha");
 };
 const userRegister = asyncHandler(async (req, res) => {
   const { email, password, name, numberPlate } = req.body;
@@ -44,7 +42,7 @@ const userRegister = asyncHandler(async (req, res) => {
     res.cookie("token", token, {
       path: "/",
       httpOnly: false,
-      expires: new Date(Date.now() + 1000 * 86400),
+      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10),
       sameSite: "none",
       secure: false,
     });
@@ -85,7 +83,7 @@ const userLogin = asyncHandler(async (req, res) => {
   res.cookie("token", token, {
     path: "/",
     httpOnly: false,
-    expires: new Date(Date.now() + 1000 * 86400),
+    expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10),
     sameSite: "none",
     secure: false,
   });
@@ -134,7 +132,7 @@ const getUser = asyncHandler(async (req, res) => {
 });
 const depositToAccount = asyncHandler(async (req, res) => {
   const { userId, amount } = req.body;
-
+  console.log(userId, amount);
   if (!userId || !amount) {
     res.status(400);
     throw new Error("Please provide userId and amount");
@@ -154,11 +152,13 @@ const depositToAccount = asyncHandler(async (req, res) => {
 
   user.money = (user.money || 0) + depositAmount;
   await user.save();
-
-  res.status(200).json({
-    success: true,
-    message: "Deposit successful",
-    currentBalance: user.money,
+  const { _id, name, email, numberPlate, money } = user;
+  res.json({
+    _id,
+    name,
+    email,
+    money,
+    numberPlate,
   });
 });
 const withdrawFromAccount = asyncHandler(async (req, res) => {
@@ -188,11 +188,13 @@ const withdrawFromAccount = asyncHandler(async (req, res) => {
 
   user.money -= withdrawAmount;
   await user.save();
-
-  res.status(200).json({
-    success: true,
-    message: "Withdrawal successful",
-    currentBalance: user.money,
+  const { _id, name, email, numberPlate, money } = user;
+  res.json({
+    _id,
+    name,
+    email,
+    money,
+    numberPlate,
   });
 });
 const loginStatus = (req, res) => {

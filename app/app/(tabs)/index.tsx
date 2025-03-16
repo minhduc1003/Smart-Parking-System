@@ -1,17 +1,44 @@
-import { Image, StyleSheet, Platform, View } from "react-native";
+import {
+  Image,
+  StyleSheet,
+  Platform,
+  View,
+  Button,
+  TouchableOpacity,
+  useColorScheme,
+} from "react-native";
 
 import { HelloWave } from "@/components/HelloWave";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
-
+import { useDispatch, useSelector } from "react-redux";
+import { userSelector } from "@/redux/selectors/userSelector";
+import { getUserAction, logoutAction } from "@/redux/reduxActions/userAction";
+import * as SecureStore from "expo-secure-store";
+import { useNavigation } from "@react-navigation/native";
 export default function HomeScreen() {
+  const navigation = useNavigation<any>();
   const [isLightOn, setIsLightOn] = useState(false);
-
+  const colorScheme = useColorScheme();
   const router = useRouter();
+  const dispatch = useDispatch();
 
+  const { user } = useSelector(userSelector);
+  useEffect(() => {
+    console.log("User", user);
+  }, [user]);
+  const checkToken = async () => {
+    const token = await SecureStore.getItemAsync("secure_token");
+    if (token) {
+      dispatch(getUserAction());
+    }
+  };
+  useEffect(() => {
+    checkToken();
+  }, []);
   return (
     <>
       <View style={styles.container}>
@@ -20,14 +47,52 @@ export default function HomeScreen() {
           <ThemedView style={styles.infoSection}>
             <ThemedView style={{ flexDirection: "row", alignItems: "center" }}>
               <HelloWave />
-              <ThemedText style={styles.infoTitle}> Welcome back</ThemedText>
+              <ThemedText
+                style={[
+                  styles.infoTitle,
+                  { color: colorScheme === "dark" ? "#ffffff" : "#000000" },
+                ]}
+              >
+                Welcome back
+              </ThemedText>
+              <TouchableOpacity
+                onPress={() => {
+                  SecureStore.deleteItemAsync("secure_token");
+                  dispatch(logoutAction());
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: "login" }],
+                  });
+                }}
+                style={{
+                  marginLeft: "auto",
+                  padding: 10,
+                  backgroundColor: "rgba(255, 107, 107, 0.1)",
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: "rgba(255, 107, 107, 0.3)",
+                  paddingHorizontal: 16,
+                  elevation: 1,
+                  shadowColor: "#FF6B6B",
+                }}
+              >
+                <ThemedText
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: "#FF6B6B",
+                  }}
+                >
+                  Logout
+                </ThemedText>
+              </TouchableOpacity>
             </ThemedView>
             <ThemedView style={styles.licensePlateContainer}>
               <ThemedText style={styles.licensePlateText}>
-                PLATE: ABC-1234
+                PLATE: {user?.numberPlate}
               </ThemedText>
               <ThemedText style={[styles.licensePlateText, { marginTop: 8 }]}>
-                USER: John Doe
+                USER: {user?.name}
               </ThemedText>
             </ThemedView>
           </ThemedView>
@@ -65,13 +130,12 @@ export default function HomeScreen() {
                   marginBottom: 8,
                 }}
               >
-                $250.00
+                {user?.money}
               </ThemedText>
             </ThemedView>
 
             <ThemedView style={{ flexDirection: "row", gap: 16 }}>
-              {/* Deposit Option */}
-              <ThemedView
+              <TouchableOpacity
                 style={[
                   styles.licensePlateContainer,
                   {
@@ -80,12 +144,9 @@ export default function HomeScreen() {
                     borderColor: "rgba(16, 185, 129, 0.3)",
                   },
                 ]}
+                onPress={() => router.navigate("/deposit")}
               >
                 <ThemedText
-                  onPress={() => {
-                    router.push("/deposit");
-                    console.log("Processing deposit");
-                  }}
                   style={[
                     styles.licensePlateText,
                     {
@@ -106,10 +167,9 @@ export default function HomeScreen() {
                 >
                   Add money
                 </ThemedText>
-              </ThemedView>
+              </TouchableOpacity>
 
-              {/* Withdraw Option */}
-              <ThemedView
+              <TouchableOpacity
                 style={[
                   styles.licensePlateContainer,
                   {
@@ -118,12 +178,9 @@ export default function HomeScreen() {
                     borderColor: "rgba(247, 223, 30, 0.3)",
                   },
                 ]}
+                onPress={() => router.navigate("/withdraw")}
               >
                 <ThemedText
-                  onPress={() => {
-                    router.push("/withdraw");
-                    console.log("Processing withdrawal");
-                  }}
                   style={[
                     styles.licensePlateText,
                     {
@@ -144,7 +201,7 @@ export default function HomeScreen() {
                 >
                   Transfer to bank
                 </ThemedText>
-              </ThemedView>
+              </TouchableOpacity>
             </ThemedView>
           </ThemedView>
         </ThemedView>

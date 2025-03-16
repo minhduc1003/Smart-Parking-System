@@ -15,18 +15,24 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useDispatch } from "react-redux";
+import { registerAction } from "@/redux/reduxActions/userAction";
 
 export default function SignupScreen() {
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [numberPlate, setNumberPlate] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const navigation = useNavigation<any>();
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const dispatch = useDispatch();
 
+  const isDark = colorScheme === "dark";
   const handleSignup = () => {
     // Add your signup logic here
     console.log("Signup attempt with:", email, password, confirmPassword);
+    dispatch(registerAction(email, name, password, numberPlate));
     navigation.reset({
       index: 0,
       routes: [{ name: "(tabs)" }],
@@ -46,8 +52,8 @@ export default function SignupScreen() {
     subtitleColor: isDark ? "#a0a0a0" : "#666",
     inputBackground: isDark ? "#2a2a2a" : "#f9f9f9",
     inputBorder: isDark ? "#444" : "#e0e0e0",
-    primaryColor: isDark ? "#738bcc" : "#4c669f",
-    headerBackground: isDark ? "#1f2937" : "#4c669f",
+    primaryColor: isDark ? "#10B981" : "#4ADE80",
+    headerBackground: isDark ? "#047857" : "#059669",
   };
 
   return (
@@ -102,7 +108,46 @@ export default function SignupScreen() {
                   autoCapitalize="none"
                 />
               </View>
-
+              <View style={styles.inputContainer}>
+                <Text style={[styles.inputLabel, { color: theme.textColor }]}>
+                  Name
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.inputBackground,
+                      borderColor: theme.inputBorder,
+                      color: theme.textColor,
+                    },
+                  ]}
+                  placeholder="Enter your name"
+                  placeholderTextColor={isDark ? "#707070" : "#a0a0a0"}
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="none"
+                />
+              </View>
+              <View style={styles.inputContainer}>
+                <Text style={[styles.inputLabel, { color: theme.textColor }]}>
+                  License Plate Number
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.inputBackground,
+                      borderColor: theme.inputBorder,
+                      color: theme.textColor,
+                    },
+                  ]}
+                  placeholder="Enter your license plate number"
+                  placeholderTextColor={isDark ? "#707070" : "#a0a0a0"}
+                  value={numberPlate}
+                  onChangeText={setNumberPlate}
+                  autoCapitalize="none"
+                />
+              </View>
               <View style={styles.inputContainer}>
                 <Text style={[styles.inputLabel, { color: theme.textColor }]}>
                   Password

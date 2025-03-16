@@ -6,6 +6,8 @@ import {
   Text,
   ScrollView,
   useColorScheme,
+  TouchableOpacity,
+  Linking,
 } from "react-native";
 
 import { Collapsible } from "@/components/Collapsible";
@@ -19,6 +21,13 @@ import { useState } from "react";
 export default function TabThreeScreen() {
   const colorScheme = useColorScheme();
   const [slotStatus, setSlotStatus] = useState([0, 0, 0]); // Initial state for parking slots
+  const [selectedLocation, setSelectedLocation] = useState("Main Parking Area");
+  const [locationExpanded, setLocationExpanded] = useState(false);
+  const openGoogleMaps = (location: string) => {
+    const query = encodeURIComponent(location);
+    const url = `https://www.google.com/maps/search/?api=1&query=${query}`;
+    Linking.openURL(url);
+  };
   return (
     <>
       <View style={{ flex: 1 }}>
@@ -33,6 +42,65 @@ export default function TabThreeScreen() {
               Parking Status
             </ThemedText>
           </ThemedView>
+
+          {/* Parking Area Location Dropdown */}
+          <ThemedView style={styles.dropdownContainer}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setLocationExpanded(!locationExpanded)}
+              style={styles.dropdownHeader}
+            >
+              <ThemedText style={styles.dropdownHeaderText}>
+                {selectedLocation}
+              </ThemedText>
+              <IconSymbol
+                name={locationExpanded ? "chevron.up" : "chevron.down"}
+                size={18}
+                color={colorScheme === "dark" ? "#ffffff" : "#000000"}
+              />
+            </TouchableOpacity>
+
+            {locationExpanded && (
+              <ThemedView style={styles.dropdownOptionsContainer}>
+                {[
+                  "54 Triều Khúc (DH CNGTVT)",
+                  "32 Nguyễn Công Chứ",
+                  "68 Lê Văn Lương",
+                ].map((location, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.dropdownOption,
+                      selectedLocation === location && styles.selectedOption,
+                    ]}
+                    onPress={() => {
+                      setSelectedLocation(location);
+                      setLocationExpanded(false);
+                      // Update slotStatus based on location selection
+                      setSlotStatus(
+                        location === "54 Triều Khúc (DH CNGTVT)"
+                          ? [0, 0, 0]
+                          : location === "32 Nguyễn Công Chứ"
+                          ? [1, 1]
+                          : [1, 1, 1, 1]
+                      );
+                    }}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.dropdownOptionText,
+                        selectedLocation === location &&
+                          styles.selectedOptionText,
+                      ]}
+                    >
+                      {location}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </ThemedView>
+            )}
+          </ThemedView>
+
           <ScrollView scrollEnabled={slotStatus.length > 3} style={{ flex: 1 }}>
             <ThemedView
               style={{
@@ -100,6 +168,17 @@ export default function TabThreeScreen() {
                 </ThemedView>
               ))}
             </ThemedView>
+            {/* Google Maps Button */}
+            <ThemedView style={styles.mapButtonContainer}>
+              <TouchableOpacity
+                style={styles.mapButton}
+                activeOpacity={0.7}
+                onPress={() => openGoogleMaps(selectedLocation)}
+              >
+                <IconSymbol name="location" size={20} color="#ffffff" />
+                <Text style={styles.mapButtonText}>Open in Google Maps</Text>
+              </TouchableOpacity>
+            </ThemedView>
           </ScrollView>
         </ThemedView>
       </View>
@@ -118,5 +197,64 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginTop: 50,
+  },
+  // Dropdown styles
+  dropdownContainer: {
+    marginTop: 16,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(150, 150, 150, 0.3)",
+  },
+  dropdownHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+  },
+  dropdownHeaderText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  dropdownOptionsContainer: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(150, 150, 150, 0.3)",
+  },
+  dropdownOption: {
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(150, 150, 150, 0.2)",
+  },
+  selectedOption: {
+    backgroundColor: "rgba(100, 100, 255, 0.1)",
+  },
+  dropdownOptionText: {
+    fontSize: 16,
+  },
+  selectedOptionText: {
+    fontWeight: "600",
+  },
+  mapButtonContainer: {
+    alignItems: "center",
+    marginBottom: 30,
+  },
+  mapButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#4285F4", // Google Maps blue color
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  mapButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
   },
 });

@@ -10,11 +10,12 @@ const {
   depositToAccount,
   withdrawFromAccount,
 } = require("../controllers/user");
+const protect = require("../middleware/auth");
 const router = express.Router();
 router.post("/register", userRegister);
 router.post("/login", userLogin);
 router.get("/logout", userLogout);
-router.get("/getUser", getUser);
+router.get("/getUser", protect, getUser);
 router.post("/deposit", depositToAccount);
 router.post("/withdraw", withdrawFromAccount);
 router.get("/loggedin", loginStatus);

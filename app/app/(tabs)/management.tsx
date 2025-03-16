@@ -20,7 +20,7 @@ export default function TabTwoScreen() {
             color={colorScheme == "dark" ? "white" : "#000000"}
           />
           <ThemedText style={{ fontSize: 24, fontWeight: "bold" }}>
-            Current Vehicles
+            History Parking
           </ThemedText>
         </ThemedView>
 
