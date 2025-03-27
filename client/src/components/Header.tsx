@@ -30,6 +30,16 @@ const Header = () => {
           >
             Car Management
           </Link>
+          <Link
+            href="/iot-control"
+            className={`transition-all duration-500 mr-4 px-8 py-3 rounded-2xl text-lg font-semibold hover:scale-105 ${
+              pathname === "/iot-control"
+                ? "bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-lg ring-2 ring-green-200"
+                : "hover:bg-gray-50 text-gray-700 hover:text-blue-600"
+            }`}
+          >
+            IOT Control
+          </Link>
         </div>
       </nav>
     </header>

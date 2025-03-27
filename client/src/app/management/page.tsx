@@ -34,18 +34,18 @@ export default function Management() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.3 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-14 max-w-7xl mx-auto"
         >
           <motion.div
             initial={{ x: -100, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 1, delay: 0.5 }}
-            className="group glass-morphism p-4 sm:p-6 md:p-8 lg:p-12 rounded-[2rem] shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:-translate-y-2 min-h-[400px] lg:h-[500px]"
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="group glass-morphism p-4 sm:p-6 md:p-8 lg:p-12 rounded-[2rem] shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:-translate-y-2 min-h-[400px] lg:h-[500px]"
           >
             <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6 md:mb-8 lg:mb-10 text-gray-800 flex items-center">
               <svg
-                className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 mr-2 sm:mr-3 md:mr-4 text-indigo-600 group-hover:rotate-180 transition-transform duration-500"
+                className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 mr-2 sm:mr-3 md:mr-4 text-indigo-600 group-hover:rotate-180 transition-transform duration-300"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -63,7 +63,7 @@ export default function Management() {
               {slotStatus.map((slot, i) => (
                 <div
                   key={i}
-                  className={`p-3 sm:p-4 md:p-6 lg:p-8 rounded-xl sm:rounded-2xl text-center transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl border ${
+                  className={`p-3 sm:p-4 md:p-6 lg:p-8 rounded-xl sm:rounded-2xl text-center transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl border ${
                     slot === 1
                       ? "bg-gradient-to-br from-red-50 to-pink-50 border-red-100"
                       : "bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100"
@@ -87,12 +87,12 @@ export default function Management() {
           <motion.div
             initial={{ x: 100, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 1, delay: 0.7 }}
-            className="glass-morphism p-6 sm:p-8 md:p-12 rounded-[2rem] shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:-translate-y-2"
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="glass-morphism p-6 sm:p-8 md:p-12 rounded-[2rem] shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:-translate-y-2"
           >
             <h2 className="text-2xl sm:text-3xl font-bold mb-6 md:mb-10 text-gray-800 flex items-center group">
               <svg
-                className="w-6 h-6 sm:w-8 sm:h-8 mr-3 md:mr-4 text-indigo-600 group-hover:rotate-180 transition-transform duration-500"
+                className="w-6 h-6 sm:w-8 sm:h-8 mr-3 md:mr-4 text-indigo-600 group-hover:rotate-180 transition-transform duration-300"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -132,7 +132,7 @@ export default function Management() {
               ].map((vehicle, index) => (
                 <div
                   key={index}
-                  className="border border-gray-100 rounded-2xl p-4 sm:p-6 md:p-8 hover:bg-white/95 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                  className="border border-gray-100 rounded-2xl p-4 sm:p-6 md:p-8 hover:bg-white/95 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
