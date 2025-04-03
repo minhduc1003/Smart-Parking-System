@@ -1,32 +1,38 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-const IotControl = () => {
-  const [lightStatus, setLightStatus] = useState({
-    parkingA: false,
-    parkingB: false,
-    entrance: false,
-    exit: false,
-  });
 
+const IotControl = () => {
+  const [lightStatus, setLightStatus] = useState(false);
+  const toggleLight = () => {
+    setLightStatus((prevStatus) => {
+      const newStatus = !prevStatus;
+      const ws = new WebSocket("ws://192.168.0.157:8080");
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: "lightStatus", status: newStatus }));
+      };
+      return newStatus;
+    });
+  };
   const [cameraStatus, setCameraStatus] = useState({
     parkingLot: true,
   });
-
-  const toggleLight = (location: keyof typeof lightStatus) => {
-    setLightStatus({
-      ...lightStatus,
-      [location]: !lightStatus[location],
-    });
-  };
-
   const toggleCamera = (location: keyof typeof cameraStatus) => {
     setCameraStatus({
       ...cameraStatus,
       [location]: !cameraStatus[location],
     });
   };
-
+  useEffect(()=>{
+    fetch("http://192.168.0.157:3000/api/light-status")
+      .then((response) => response.json())
+      .then((data) => {
+        setLightStatus(data.status);
+      })
+      .catch((error) => {
+        console.error("Error fetching light status:", error);
+      });
+  },[])
   return (
     <motion.div
       className="p-6"
@@ -51,44 +57,37 @@ const IotControl = () => {
         transition={{ duration: 0.6 }}
       >
         <h2 className="text-xl font-semibold mb-4">Light Control</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Object.entries(lightStatus).map(([location, status]) => (
-            <motion.div
-              key={location}
-              className="flex justify-between items-center p-3 border rounded"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <span className="capitalize">{location} Light</span>
-              <div className="flex items-center">
-                <motion.span
-                  className="mr-2"
-                  animate={{ color: status ? "#10B981" : "#6B7280" }}
-                >
-                  {status ? "ON" : "OFF"}
-                </motion.span>
-                <motion.button
-                  onClick={() =>
-                    toggleLight(location as keyof typeof lightStatus)
-                  }
-                  className={`w-12 h-6 rounded-full p-1 transition-colors ${
-                    status ? "bg-green-500" : "bg-gray-300"
-                  }`}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <motion.div
-                    className="w-4 h-4 rounded-full bg-white"
-                    animate={{ x: status ? 24 : 0 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  />
-                </motion.button>
-              </div>
-            </motion.div>
-          ))}
+        <div className="grid grid-cols-1 gap-4">
+          <motion.div
+            className="flex justify-between items-center p-3 border rounded"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <span>Main Light</span>
+            <div className="flex items-center">
+              <motion.span
+                className="mr-2"
+                animate={{ color: lightStatus ? "#10B981" : "#6B7280" }}
+              >
+                {lightStatus ? "ON" : "OFF"}
+              </motion.span>
+              <motion.button
+                onClick={toggleLight}
+                className={`w-12 h-6 rounded-full p-1 transition-colors ${
+                  lightStatus ? "bg-green-500" : "bg-gray-300"
+                }`}
+                whileTap={{ scale: 0.9 }}
+              >
+                <motion.div
+                  className="w-4 h-4 rounded-full bg-white"
+                  animate={{ x: lightStatus ? 24 : 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              </motion.button>
+            </div>
+          </motion.div>
         </div>
       </motion.section>
-
-      {/* Camera Management Section */}
       <motion.section
         className="p-4 border rounded-lg shadow-md"
         initial={{ opacity: 0, y: 20 }}

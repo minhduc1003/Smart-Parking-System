@@ -7,16 +7,20 @@ export default function Management() {
 
   useEffect(() => {
     // Connect to WebSocket server
-    const ws = new WebSocket("ws://192.168.0.115:8080");
+    const ws = new WebSocket("ws://192.168.0.157:8080");
 
     ws.onopen = () => {
       console.log("Connected to WebSocket");
     };
 
     ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      if (message.type === "slot-update") {
-        setSlotStatus(message.slots);
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === "slot-update") {
+          setSlotStatus(message.slots);
+        }
+      } catch (error) {
+        console.error("Failed to parse WebSocket message:", error);
       }
     };
 

@@ -4,16 +4,21 @@
 #include <LiquidCrystal_I2C.h>
 #include <WebSocketsClient.h>
 #define CAR_SLOT 3
-#define IR_CAR1 16
-#define IR_CAR2 2
-#define IR_CAR3 14
+#define IR_CAR1 15
+#define led_CAR1 2
+#define IR_CAR2 4
+#define led_CAR2 16
+#define IR_CAR3 17
+#define led_CAR3 5
+#define led_ALL 18
 WebSocketsClient webSocket;  // WebSocket client object
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 // Replace with your Wi-Fi credentials
-const char* ssid = "tang2-2.4";
+const char* ssid = "tang5-2.4";
 const char* password = "23102003";
 short gsArray_Sensor[CAR_SLOT] = {IR_CAR1, IR_CAR2, IR_CAR3};
-const char* websocket_server = "192.168.0.115";  // Replace with your Node.js server's IP
+short gsArray_LED[CAR_SLOT] = {led_CAR1, led_CAR2, led_CAR3};
+const char* websocket_server = "192.168.0.157";  // Replace with your Node.js server's IP
 const int websocket_port = 8080;  // WebSocket port
 // Callback when data is received via ESP-NOW
 void OnDataRecv(uint8_t* mac, uint8_t* incomingData, uint8_t len) {
@@ -90,7 +95,10 @@ lcd.print("Wifi Connect...");
   pinMode(IR_CAR1, INPUT_PULLUP);
   pinMode(IR_CAR2, INPUT_PULLUP);
   pinMode(IR_CAR3, INPUT_PULLUP);
-
+  pinMode(led_CAR1, OUTPUT);
+  pinMode(led_CAR2, OUTPUT);
+  pinMode(led_CAR3, OUTPUT);
+  pinMode(led_ALL, OUTPUT);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -123,7 +131,11 @@ void loop() {
   for(short i=0; i<CAR_SLOT; i++)
     {
       usSensorStatus[i]= sIR_Detect(gsArray_Sensor[i]);
-
+      if (usSensorStatus[i] == 1) {
+        digitalWrite(gsArray_LED[i], HIGH);
+      } else {
+        digitalWrite(gsArray_LED[i], LOW);
+      }
 
     }
      String statusMessage = "{\"action\":\"slot-status\",\"slots\":[";
@@ -142,6 +154,7 @@ void loop() {
 
 }
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
+ String message = String((char *)payload);
   switch (type) {
     case WStype_CONNECTED:
       Serial.println("Connected to WebSocket server");
@@ -152,6 +165,72 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
     case WStype_TEXT:
       Serial.print("Received message: ");
       Serial.println((char*)payload);
+      // Parse the JSON message
+      // Check if the message is a JSON with type "lightStatus"
+      if (message.indexOf("\"type\":\"light-status\"") >= 0 && message.indexOf("\"lightStatus\":") >= 0) {
+        
+        // Find the value of lightStatus in the message
+        int statusIndex = message.indexOf("\"lightStatus\":") + 15;  // Skip past the "lightStatus": part
+        String statusValue = message.substring(statusIndex-1, statusIndex + 3);  // Get the boolean value
+        Serial.print(statusValue);
+        // If status is "true", turn on the LED, otherwise turn it off
+        if (statusValue == "true") {
+          digitalWrite(led_ALL, HIGH);  // Turn the LED on
+          Serial.println("LED is ON");
+        } else {
+          digitalWrite(led_ALL, LOW);   // Turn the LED off
+          Serial.println("LED is OFF");
+        }
+      }
+       if (message.indexOf("\"type\":\"plate-entry\"") >= 0) {
+        // Extract the plate number and time from the message
+        int plateIndex = message.indexOf("\"plateNumber\":\"") + 15;
+        int plateEndIndex = message.indexOf("\"", plateIndex);
+        String plateNumber = message.substring(plateIndex, plateEndIndex);
+        
+        int timeIndex = message.indexOf("\"time\":\"") + 8;
+        int timeEndIndex = message.indexOf("\"", timeIndex);
+        String entryTime = message.substring(timeIndex, timeEndIndex);
+        
+        // Display on LCD
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Plate: " + plateNumber);
+        lcd.setCursor(0, 1);
+        lcd.print("Time: " + entryTime);
+        
+        Serial.println("Detected plate: " + plateNumber);
+        Serial.println("Entry time: " + entryTime);
+        
+        // Wait a few seconds before returning to normal display
+        delay(1000);
+      }
+      if (message.indexOf("\"type\":\"plate-exit\"") >= 0) {
+        // Extract information from the message
+        int plateIndex = message.indexOf("\"plateNumber\":\"") + 15;
+        int plateEndIndex = message.indexOf("\"", plateIndex);
+        String plateNumber = message.substring(plateIndex, plateEndIndex);
+        
+        int feeIndex = message.indexOf("\"fee\":") + 6;
+        int feeEndIndex = message.indexOf("}", feeIndex);
+        if (message.indexOf(",", feeIndex) > 0 && message.indexOf(",", feeIndex) < feeEndIndex) {
+          feeEndIndex = message.indexOf(",", feeIndex);
+        }
+        String fee = message.substring(feeIndex, feeEndIndex);
+        
+        // Display on LCD
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Exit: " + plateNumber);
+        lcd.setCursor(0, 1);
+        lcd.print("Fee: " + fee);
+        
+        Serial.println("Exit plate: " + plateNumber);
+        Serial.println("Fee: " + fee);
+        
+        // Wait before returning to normal display
+        delay(1000);
+      }
       break;
     case WStype_ERROR:
       Serial.println("WebSocket error");

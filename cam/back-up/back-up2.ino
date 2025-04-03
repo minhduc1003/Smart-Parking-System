@@ -17,17 +17,17 @@
 // WiFi credentials and server information
 const char* ssid = "tang2";             // Replace xxx with your WiFi SSID
 const char* password = "23102003";          // Replace xxx with your WiFi Password
-String serverName = "www.circuitdigest.cloud";  // Replace with your server domain
-String serverPath = "/readnumberplate";         // API endpoint path "/readqrcode" or "/readnumberplate"
+String serverName = "api.platerecognizer.com";  // Replace with your server domain
+String serverPath = "/v1/plate-reader/";         // API endpoint path "/readqrcode" or "/readnumberplate"
 const int serverPort = 443;                     // HTTPS port
-String apiKey = "kBVb1PYRQfI3";                   // Replace xxx with your API key
+String apiKey = "3585a740fccd9b2efa968b0ffa84bb99a9fcbc7d";                   // Replace xxx with your API key
 String imageViewLink = "https://www.circuitdigest.cloud/static/" + apiKey + ".jpeg";
 #define flashLight 4  // GPIO pin for the flashlight
 int count = 0;        // Counter for image uploads
 WiFiClientSecure client;  // Secure client for HTTPS communication
 HTTPClient http;
 WebServer server(80);
-String serverResponse = "http://192.168.0.157:3000/get-in";  // Variable to store server response
+String serverResponse = "http://192.168.0.159:3000/get-in";  // Variable to store server response
 uint8_t receiverMac[] = {0xDC, 0x4F, 0x22, 0x31, 0xBE, 0x63};
 // Camera GPIO pins - adjust based on your ESP32-CAM board
 #define PWDN_GPIO_NUM 32
@@ -108,7 +108,7 @@ SemaphoreHandle_t frameSync = NULL;
 QueueHandle_t streamingClients = NULL;
 
 // We will try to achieve 25 FPS frame rate
-const int FPS = 25;
+const int FPS = 10;
 
 // We will handle web client requests every 50 ms (20 Hz)
 const int WSINTERVAL = 100;
@@ -134,7 +134,7 @@ void mjpegCB(void* pvParameters) {
     "cam",        // name
     4096,         // stacj size
     NULL,         // parameters
-    2,            // priority
+    3,            // priority
     &tCam,        // RTOS task handle
     APP_CPU);     // core
 
@@ -457,13 +457,13 @@ void handleTrigger() {
 void openBarrier() {
   currentStatus = "Barrier Opening";
   Serial.println("Barrier Opens");
-  myservo.write(0);
+  myservo.write(180);
   delay(barrierDelay);
 }
 void closeBarrier() {
   currentStatus = "Barrier Closing";
   Serial.println("Barrier Closes");
-  myservo.write(180);
+  myservo.write(0);
   delay(barrierDelay);
 }
 
@@ -499,17 +499,19 @@ int sendPhoto() {
     String filename = apiKey + ".jpeg";
 
     // Prepare HTTP POST request
-    String head = "--CircuitDigest\r\nContent-Disposition: form-data; name=\"imageFile\"; filename=\"" + filename + "\"\r\nContent-Type: image/jpeg\r\n\r\n";
-    String tail = "\r\n--CircuitDigest--\r\n";
+    String boundary = "----SmartParkingBoundary";
+    String head = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"upload\"; filename=\"car.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n";
+    String tail = "\r\n--" + boundary + "--\r\n";
+
     uint32_t imageLen = fb->len;
     uint32_t extraLen = head.length() + tail.length();
     uint32_t totalLen = imageLen + extraLen;
 
     client.println("POST " + serverPath + " HTTP/1.1");
     client.println("Host: " + serverName);
+    client.println("Content-Type: multipart/form-data; boundary=" + boundary);
+    client.println("Authorization: Token " + apiKey);
     client.println("Content-Length: " + String(totalLen));
-    client.println("Content-Type: multipart/form-data; boundary=CircuitDigest");
-    client.println("Authorization:" + apiKey);
     client.println();
     client.print(head);
 
@@ -551,10 +553,10 @@ int sendPhoto() {
 
 
     // Extract data from response
-    recognizedPlate = extractJsonStringValue(response, "\"number_plate\"");
-    imageLink = extractJsonStringValue(response, "\"view_image\"");
+    recognizedPlate = extractJsonStringValue(response, "\"plate\"");
+    imageLink = "";
 
-    currentStatus = "Response Recieved Successfully";
+    currentStatus = "Response Received Successfully";
 
 
     // Add valid plate to history
@@ -721,7 +723,7 @@ void setup() {
   myservo.setPeriodHertz(50);            // standard 50 hz servo
   myservo.attach(servoPin, 1000, 2000);  // attaches the servo on pin 18 to the servo object
     // Set the initial position of the servo (barrier closed)
-  myservo.write(180);
+  myservo.write(0);
  xTaskCreatePinnedToCore(
     mjpegCB,
     "mjpeg",

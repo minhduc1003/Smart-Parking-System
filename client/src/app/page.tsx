@@ -21,7 +21,7 @@ export default function Home() {
             </h2>
             <div className="relative w-[480px] h-[320px] mx-auto overflow-hidden rounded-xl shadow-lg">
               <iframe
-                src="http://192.168.0.111/mjpeg/1"
+                src="http://192.168.1.102"
                 className="absolute top-0 left-0 w-full h-full"
                 frameBorder={0}
                 allowFullScreen
@@ -81,7 +81,7 @@ export default function Home() {
             </h2>
             <div className="relative w-[480px] h-[320px] mx-auto overflow-hidden rounded-xl shadow-lg">
               <iframe
-                src="http://192.168.0.101/mjpeg/1"
+                src="http://192.168.1.103"
                 className="absolute top-0 left-0 w-full h-full"
                 allowFullScreen
                 style={{ border: "none" }}

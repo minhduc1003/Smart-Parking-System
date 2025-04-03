@@ -21,17 +21,13 @@ app.use(
 );
 const wss = new WebSocket.Server({ port: wsPort });
 wss.on("connection", (ws) => {
-  console.log("A client connected to WebSocket server.");
 
   // Send a message to the client when connected
-  ws.send("Welcome to the WebSocket server!");
 
   // Handle incoming messages from the ESP8266
   ws.on("message", async (message) => {
-    console.log("Received: " + message);
     // try {
     const data = JSON.parse(message);
-    console.log(data.slots);
     // Broadcast the slot data to all connected clients
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
@@ -41,6 +37,35 @@ wss.on("connection", (ws) => {
             slots: data.slots,
           })
         );
+        if(data.type ==="lightStatus"){
+          client.send(JSON.stringify({
+            type: "light-status",
+            lightStatus: data.status,
+          }))
+          // Save light status to MongoDB
+          const saveStatus = async () => {
+            try {
+              // Create a light status document
+              const lightStatusData = {
+                status: data.status,
+                timestamp: new Date()
+              };
+              
+              // Use mongoose to save to database
+              const LightStatus = mongoose.models.LightStatus || mongoose.model('LightStatus', new mongoose.Schema({
+                status: Boolean,
+                timestamp: Date
+              }), 'lightStatus');
+              
+              await new LightStatus(lightStatusData).save();
+              console.log('Light status saved to database:', data.status);
+            } catch (error) {
+              console.error('Error saving light status:', error);
+            }
+          };
+
+          saveStatus();
+        }
       }
     });
     //   if (data.action === 'slot-status') {
@@ -71,66 +96,130 @@ wss.on("connection", (ws) => {
   });
 });
 app.use("/api/user", userRouter);
-// app.post("/get-in", async (req, res) => {
-//   try {
-//     console.log(req.body);
-//     await client.connect();
-//     const database = client.db("smart_parking");
-//     const collection = database.collection("plates");
+// Route to get light status
+app.get('/api/light-status', async (req, res) => {
+  try {
+    // Use the existing LightStatus model or define it if not already defined
+    const LightStatus = mongoose.models.LightStatus || mongoose.model('LightStatus', 
+      new mongoose.Schema({
+        status: Boolean,
+        timestamp: Date
+      }), 
+      'lightStatus'
+    );
+    
+    // Get the latest light status
+    const latestStatus = await LightStatus.findOne().sort({ timestamp: -1 });
+    
+    if (!latestStatus) {
+      return res.status(404).json({ message: 'No light status found' });
+    }
+    
+    res.status(200).json({ 
+      status: latestStatus.status,
+      timestamp: latestStatus.timestamp 
+    });
+  } catch (error) {
+    console.error('Error fetching light status:', error);
+    res.status(500).json({ message: 'Error fetching light status', error: error.message });
+  }
+});
+app.post("/get-in", async (req, res) => {
+  try {
+    const plates = mongoose.models.plates || mongoose.model('plates', 
+      new mongoose.Schema({
+        plateNumber: String,
+        time: String,
+      }), 
+      'plates'
+    );
+    const plateData = {
+      plateNumber: req.body.plate,
+      time: req.body.time,
+    };
+    // Send plate data to all connected clients via WebSocket
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          type: "plate-entry",
+          plateNumber: plateData.plateNumber,
+          time: plateData.time
+        }));
+      }
+    });
+    console.log("Plate data received:", plateData);
+    const result = await plates.create(plateData);
+    console.log("Plate data saved:", result);
+    res.status(200).send({ message: "Plate data saved successfully", result });
+  } catch (error) {
+    res.status(500).send({ message: "Error saving plate data", error });
+  } 
+});
+app.post("/get-out", async (req, res) => {
+  try {
+    const plates = mongoose.models.plates || mongoose.model('plates', 
+      new mongoose.Schema({
+        plateNumber: String,
+        time: String,
+      }), 
+      'plates'
+    );
+    const platesRecord = mongoose.models.platesRecord || mongoose.model('platesRecord', 
+      new mongoose.Schema({
+        plateNumber: String,
+        entryTime: String,
+        exitTime: String,
+        duration: String,
+        fee: Number,
+      }), 
+      'platesRecord'
+    );
+    console.log("Received exit request:", req.body);
+    const plateNumber = req.body.plate;
+    const exitTime = req.body.time;
+    
+    // Find the most recent entry for this plate number
+    const entry = await plates.findOne(
+      { plateNumber: plateNumber }
+    ).sort({ time: -1 });
 
-//     const plateData = {
-//       plateNumber: req.body.plateNumber,
-//       time: req.body.time,
-//     };
-//     const result = await collection.insertOne(plateData);
+    if (!entry) {
+      return res.status(404).send({ message: "No entry found for this plate" });
+    }
+    console.log("Entry found:", entry);
+    // Calculate parking duration and fee
+    const duration = (new Date(exitTime) - new Date(entry.time)) / 1000; // in seconds
+    const fee = duration * 100; // 100 VND per second
 
-//     res.status(200).send({ message: "Plate data saved successfully", result });
-//   } catch (error) {
-//     res.status(500).send({ message: "Error saving plate data", error });
-//   } finally {
-//     await client.close();
-//   }
-// });
-// app.post("/get-out", async (req, res) => {
-//   try {
-//     await client.connect();
-//     const database = client.db("smart_parking");
-//     const collection = database.collection("plates");
+    const exitData = {
+      plateNumber,
+      entryTime: entry.time,
+      exitTime,
+      duration,
+      fee,
+    };
+    // Send plate exit data to all connected clients via WebSocket
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          type: "plate-exit",
+          plateNumber: exitData.plateNumber,
+          entryTime: exitData.entryTime,
+          exitTime: exitData.exitTime,
+          duration: exitData.duration,
+          fee: exitData.fee
+        }));
+      }
+    });
+    console.log("Exit data saved:", exitData);
 
-//     const plateNumber = req.body.plateNumber;
-//     const exitTime = req.body.time;
-
-//     // Find the most recent entry for this plate number
-//     const entry = await collection.findOne(
-//       { plateNumber: plateNumber },
-//       { sort: { time: -1 } }
-//     );
-
-//     if (!entry) {
-//       return res.status(404).send({ message: "No entry found for this plate" });
-//     }
-
-//     // Calculate parking duration and fee
-//     const duration = (new Date(exitTime) - new Date(entry.time)) / 1000; // in seconds
-//     const fee = duration * 100; // 100 VND per second
-
-//     const exitData = {
-//       plateNumber,
-//       entryTime: entry.time,
-//       exitTime,
-//       duration,
-//       fee,
-//     };
-
-//     await collection.deleteOne({ plateNumber: plateNumber });
-
-//     res.status(200).send({ message: "Exit recorded successfully", exitData });
-//   } catch (error) {
-//     res.status(500).send({ message: "Error recording exit", error });
-//   } finally {
-//     await client.close();
-//   }
-// });
+    // await plates.deleteMany({ plateNumber: plateNumber });
+    await platesRecord.create(exitData);
+    res.status(200).send({ message: "Exit recorded successfully", exitData });
+  } catch (error) {
+    res.status(500).send({ message: "Error recording exit", error });
+  }
+});
 mongoose
   .connect(uri, {
     dbName: "smart_parking",
