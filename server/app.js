@@ -213,7 +213,7 @@ app.post("/get-out", async (req, res) => {
     });
     console.log("Exit data saved:", exitData);
 
-    // await plates.deleteMany({ plateNumber: plateNumber });
+    await plates.deleteMany({ plateNumber: plateNumber });
     await platesRecord.create(exitData);
     res.status(200).send({ message: "Exit recorded successfully", exitData });
   } catch (error) {

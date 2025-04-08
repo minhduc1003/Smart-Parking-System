@@ -1,7 +1,78 @@
 "use client";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 export default function Home() {
+  // State for entrance and exit plate information
+  const [entrancePlate, setEntrancePlate] = useState("Scanning");
+  const [entranceTime, setEntranceTime] = useState("");
+  const [exitPlate, setExitPlate] = useState("Scanning");
+  const [exitTime, setExitTime] = useState("");
+  const [exitDetails, setExitDetails] = useState({ duration: "", fee: "" });
+
+  useEffect(() => {
+    // Connect to WebSocket server
+    const ws = new WebSocket("ws://192.168.1.100:8080");
+
+    ws.onopen = () => {
+      console.log("Connected to WebSocket");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log("Received message:", message); // Log the received message
+        if (message.type === "slot-update") {
+          // Handle slot update if needed
+        } else if (message.type === "plate-entry") {
+          // Handle plate entry message
+          setEntrancePlate(message.plateNumber);
+          setEntranceTime(message.time);
+        } else if (message.type === "plate-exit") {
+          // Handle plate exit message
+          setExitPlate(message.plateNumber);
+          setExitTime(message.exitTime);
+          setExitDetails({
+            duration: message.duration,
+            fee: message.fee
+          });
+        }
+      } catch (error) {
+        console.error("Failed to parse WebSocket message:", error);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("Disconnected from WebSocket");
+    };
+
+    return () => {
+      ws.close(); // Clean up on component unmount
+    };
+  }, []);
+
+  // Render scanning animation when no plate is detected
+  const renderScanningAnimation = () => (
+    <>
+      Scanning
+      {Array.from({ length: 3 }).map((_, i) => (
+        <motion.span
+          key={i}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 1, 0] }}
+          transition={{
+            duration: 1,
+            repeat: Infinity,
+            delay: i * 0.3,
+          }}
+          className="text-3xl"
+        >
+          .
+        </motion.span>
+      ))}
+    </>
+  );
+
   return (
     <>
       <main className="p-6 sm:p-8 md:p-12 ">
@@ -19,7 +90,7 @@ export default function Home() {
             <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 text-emerald-600 tracking-tight">
               Entrance Camera
             </h2>
-            <div className="relative w-[480px] h-[320px] mx-auto overflow-hidden rounded-xl shadow-lg">
+            <div className="relative w-[320px] h-[240px] mx-auto overflow-hidden rounded-xl shadow-lg">
               <iframe
                 src="http://192.168.1.102"
                 className="absolute top-0 left-0 w-full h-full"
@@ -38,31 +109,27 @@ export default function Home() {
                     id="entrance-plate"
                     className="font-mono text-base sm:text-lg text-emerald-700"
                   >
-                    Scanning
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <motion.span
-                        key={i}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: [0, 1, 0] }}
-                        transition={{
-                          duration: 1,
-                          repeat: Infinity,
-                          delay: i * 0.3,
-                        }}
-                        className="text-3xl"
-                      >
-                        .
-                      </motion.span>
-                    ))}
+                    {entrancePlate === "Scanning" ? renderScanningAnimation() : entrancePlate}
                   </p>
                 </div>
               </div>
-              <p className="text-sm sm:text-base text-emerald-600 font-medium">
+              {
+                entranceTime && (
+                  <p className="text-sm sm:text-base text-emerald-600 font-medium">
                 Time In:{" "}
                 <span className="font-bold">
-                  {new Date().toLocaleTimeString()}
+                  {new Date(entranceTime).toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                  })}
                 </span>
-              </p>
+              </p>)
+              }
             </div>
           </motion.div>
 
@@ -79,7 +146,7 @@ export default function Home() {
             <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 text-emerald-600 tracking-tight">
               Exit Camera
             </h2>
-            <div className="relative w-[480px] h-[320px] mx-auto overflow-hidden rounded-xl shadow-lg">
+            <div className="relative w-[320px] h-[240px] mx-auto overflow-hidden rounded-xl shadow-lg">
               <iframe
                 src="http://192.168.1.103"
                 className="absolute top-0 left-0 w-full h-full"
@@ -94,34 +161,37 @@ export default function Home() {
                 </h3>
                 <div className="bg-emerald-50/80 backdrop-blur-sm p-3 sm:p-4 rounded-xl mt-2 shadow-inner">
                   <p
-                    id="entrance-plate"
+                    id="exit-plate"
                     className="font-mono text-base sm:text-lg text-emerald-700"
                   >
-                    Scanning
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <motion.span
-                        key={i}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: [0, 1, 0] }}
-                        transition={{
-                          duration: 1,
-                          repeat: Infinity,
-                          delay: i * 0.3,
-                        }}
-                        className="text-3xl"
-                      >
-                        .
-                      </motion.span>
-                    ))}
+                    {exitPlate === "Scanning" ? renderScanningAnimation() : exitPlate}
                   </p>
                 </div>
               </div>
-              <p className="text-sm sm:text-base text-emerald-600 font-medium">
-                Time Out:{" "}
-                <span className="font-bold">
-                  {new Date().toLocaleTimeString()}
-                </span>
-              </p>
+              {exitTime && (
+                <p className="text-sm sm:text-base text-emerald-600 font-medium">
+                  Time Out:{" "}
+                  {new Date(exitTime).toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                  })}
+                </p>
+              )}
+              {exitDetails.duration && (
+                <div className="bg-emerald-50/80 backdrop-blur-sm p-3 rounded-xl shadow-inner">
+                  <p className="text-sm text-emerald-700">
+                    <span className="font-semibold">Duration:</span> {exitDetails.duration}
+                  </p>
+                  <p className="text-sm text-emerald-700 font-bold mt-1">
+                    <span className="font-semibold">Fee:</span> {Number(exitDetails.fee).toLocaleString('vi-VN')} VNĐ
+                  </p>
+                </div>
+              )}
             </div>
           </motion.div>
         </div>
