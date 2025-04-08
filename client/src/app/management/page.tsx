@@ -3,11 +3,10 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 export default function Management() {
-  const [slotStatus, setSlotStatus] = useState([0, 0, 0]); // Initial state for parking slots
+  const [slotStatus, setSlotStatus] = useState([0, 0, 0]);
 
   useEffect(() => {
-    // Connect to WebSocket server
-    const ws = new WebSocket("ws://192.168.0.157:8080");
+    const ws = new WebSocket("ws://192.168.1.100:8080");
 
     ws.onopen = () => {
       console.log("Connected to WebSocket");
@@ -29,7 +28,7 @@ export default function Management() {
     };
 
     return () => {
-      ws.close(); // Clean up on component unmount
+      ws.close();
     };
   }, []);
   return (

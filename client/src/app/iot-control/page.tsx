@@ -7,7 +7,7 @@ const IotControl = () => {
   const toggleLight = () => {
     setLightStatus((prevStatus) => {
       const newStatus = !prevStatus;
-      const ws = new WebSocket("ws://192.168.0.157:8080");
+      const ws = new WebSocket("ws://192.168.1.100:8080");
       ws.onopen = () => {
         ws.send(JSON.stringify({ type: "lightStatus", status: newStatus }));
       };
@@ -23,8 +23,8 @@ const IotControl = () => {
       [location]: !cameraStatus[location],
     });
   };
-  useEffect(()=>{
-    fetch("http://192.168.0.157:3000/api/light-status")
+  useEffect(() => {
+    fetch("http://192.168.1.100:3000/api/light-status")
       .then((response) => response.json())
       .then((data) => {
         setLightStatus(data.status);
@@ -32,7 +32,7 @@ const IotControl = () => {
       .catch((error) => {
         console.error("Error fetching light status:", error);
       });
-  },[])
+  }, []);
   return (
     <motion.div
       className="p-6"

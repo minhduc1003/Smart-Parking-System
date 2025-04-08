@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 export default function Home() {
-  // State for entrance and exit plate information
   const [entrancePlate, setEntrancePlate] = useState("Scanning");
   const [entranceTime, setEntranceTime] = useState("");
   const [exitPlate, setExitPlate] = useState("Scanning");
@@ -11,7 +10,6 @@ export default function Home() {
   const [exitDetails, setExitDetails] = useState({ duration: "", fee: "" });
 
   useEffect(() => {
-    // Connect to WebSocket server
     const ws = new WebSocket("ws://192.168.1.100:8080");
 
     ws.onopen = () => {
@@ -21,20 +19,17 @@ export default function Home() {
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        console.log("Received message:", message); // Log the received message
+        console.log("Received message:", message);
         if (message.type === "slot-update") {
-          // Handle slot update if needed
         } else if (message.type === "plate-entry") {
-          // Handle plate entry message
           setEntrancePlate(message.plateNumber);
           setEntranceTime(message.time);
         } else if (message.type === "plate-exit") {
-          // Handle plate exit message
           setExitPlate(message.plateNumber);
           setExitTime(message.exitTime);
           setExitDetails({
             duration: message.duration,
-            fee: message.fee
+            fee: message.fee,
           });
         }
       } catch (error) {
@@ -47,11 +42,10 @@ export default function Home() {
     };
 
     return () => {
-      ws.close(); // Clean up on component unmount
+      ws.close();
     };
   }, []);
 
-  // Render scanning animation when no plate is detected
   const renderScanningAnimation = () => (
     <>
       Scanning
@@ -109,27 +103,28 @@ export default function Home() {
                     id="entrance-plate"
                     className="font-mono text-base sm:text-lg text-emerald-700"
                   >
-                    {entrancePlate === "Scanning" ? renderScanningAnimation() : entrancePlate}
+                    {entrancePlate === "Scanning"
+                      ? renderScanningAnimation()
+                      : entrancePlate}
                   </p>
                 </div>
               </div>
-              {
-                entranceTime && (
-                  <p className="text-sm sm:text-base text-emerald-600 font-medium">
-                Time In:{" "}
-                <span className="font-bold">
-                  {new Date(entranceTime).toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: true
-                  })}
-                </span>
-              </p>)
-              }
+              {entranceTime && (
+                <p className="text-sm sm:text-base text-emerald-600 font-medium">
+                  Time In:{" "}
+                  <span className="font-bold">
+                    {new Date(entranceTime).toLocaleString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                      second: "2-digit",
+                      hour12: true,
+                    })}
+                  </span>
+                </p>
+              )}
             </div>
           </motion.div>
 
@@ -164,31 +159,35 @@ export default function Home() {
                     id="exit-plate"
                     className="font-mono text-base sm:text-lg text-emerald-700"
                   >
-                    {exitPlate === "Scanning" ? renderScanningAnimation() : exitPlate}
+                    {exitPlate === "Scanning"
+                      ? renderScanningAnimation()
+                      : exitPlate}
                   </p>
                 </div>
               </div>
               {exitTime && (
                 <p className="text-sm sm:text-base text-emerald-600 font-medium">
                   Time Out:{" "}
-                  {new Date(exitTime).toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: true
+                  {new Date(exitTime).toLocaleString("en-US", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: true,
                   })}
                 </p>
               )}
               {exitDetails.duration && (
                 <div className="bg-emerald-50/80 backdrop-blur-sm p-3 rounded-xl shadow-inner">
                   <p className="text-sm text-emerald-700">
-                    <span className="font-semibold">Duration:</span> {exitDetails.duration}
+                    <span className="font-semibold">Duration:</span>{" "}
+                    {exitDetails.duration}
                   </p>
                   <p className="text-sm text-emerald-700 font-bold mt-1">
-                    <span className="font-semibold">Fee:</span> {Number(exitDetails.fee).toLocaleString('vi-VN')} VNĐ
+                    <span className="font-semibold">Fee:</span>{" "}
+                    {Number(exitDetails.fee).toLocaleString("vi-VN")} VNĐ
                   </p>
                 </div>
               )}
