@@ -10,6 +10,7 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { userSelector } from "@/redux/selectors/userSelector";
+import axios from "axios";
 export default function TabTwoScreen() {
   const colorScheme = useColorScheme();
   const [parkingLotRecord, setParkingLotRecord] = useState<any>([
@@ -17,18 +18,17 @@ export default function TabTwoScreen() {
 ]);
   const { user } = useSelector(userSelector);
   useEffect(() => {
-    fetch("http://103.109.37.60:3000/user-plate", {
-      method: "GET",
+    axios
+      .post("http://103.109.37.60:3000/user-plate", {
       headers: {
-      "Content-Type": "application/json",
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-      plateNumber: user?.numberPlate, 
-      }),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-      setParkingLotRecord(data.userPlates);
+      params: {
+        plateNumber: user?.numberPlate,
+      },
+      })
+      .then((response) => {
+      setParkingLotRecord(response.data.userPlates);
       })
       .catch((error) => {
       console.error(error);
