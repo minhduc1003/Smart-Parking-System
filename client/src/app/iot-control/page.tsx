@@ -7,7 +7,7 @@ const IotControl = () => {
   const toggleLight = () => {
     setLightStatus((prevStatus) => {
       const newStatus = !prevStatus;
-      const ws = new WebSocket("ws://192.168.1.100:8080");
+      const ws = new WebSocket("ws://103.109.37.60:8080");
       ws.onopen = () => {
         ws.send(JSON.stringify({ type: "lightStatus", status: newStatus }));
       };
@@ -24,7 +24,7 @@ const IotControl = () => {
     });
   };
   useEffect(() => {
-    fetch("http://192.168.1.100:3000/api/light-status")
+    fetch("http://103.109.37.60:3000/api/light-status")
       .then((response) => response.json())
       .then((data) => {
         setLightStatus(data.status);
@@ -136,13 +136,13 @@ const IotControl = () => {
               </div>
               {status && (
                 <motion.div
-                  className="relative w-[480px] h-[320px] mx-auto overflow-hidden rounded-xl shadow-lg"
+                  className="relative w-[320px] h-[240px] mx-auto overflow-hidden rounded-xl shadow-lg"
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.3 }}
                 >
                   <iframe
-                    src="http://192.168.0.111/mjpeg/1"
+                    src="http://172.20.10.6"
                     className="absolute top-0 left-0 w-full h-full"
                     frameBorder={0}
                     allowFullScreen

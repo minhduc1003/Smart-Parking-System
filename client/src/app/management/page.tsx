@@ -3,10 +3,10 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 export default function Management() {
-  const [slotStatus, setSlotStatus] = useState([0, 0, 0]);
-
+  const [slotStatus, setSlotStatus] = useState([0, 0, 0, 0]);
+  const [parkingLotRecord, setParkingLotRecord] = useState<any>([]);
   useEffect(() => {
-    const ws = new WebSocket("ws://192.168.1.100:8080");
+    const ws = new WebSocket("ws://103.109.37.60:8080");
 
     ws.onopen = () => {
       console.log("Connected to WebSocket");
@@ -31,6 +31,16 @@ export default function Management() {
       ws.close();
     };
   }, []);
+    useEffect(() => {
+      fetch("http://vuondaoduc.io.vn:3000/api/get-plate")
+        .then((response) => response.json())
+        .then((data) => {
+          setParkingLotRecord(data.plateData);
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    }, []);
   return (
     <>
       <main className="min-h-screen p-4 sm:p-6 md:p-8 ">
@@ -87,85 +97,56 @@ export default function Management() {
             </div>
           </motion.div>
 
-          <motion.div
+            <motion.div
             initial={{ x: 100, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.4 }}
             className="glass-morphism p-6 sm:p-8 md:p-12 rounded-[2rem] shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:-translate-y-2"
-          >
+            >
             <h2 className="text-2xl sm:text-3xl font-bold mb-6 md:mb-10 text-gray-800 flex items-center group">
               <svg
-                className="w-6 h-6 sm:w-8 sm:h-8 mr-3 md:mr-4 text-indigo-600 group-hover:rotate-180 transition-transform duration-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+              className="w-6 h-6 sm:w-8 sm:h-8 mr-3 md:mr-4 text-indigo-600 group-hover:rotate-180 transition-transform duration-300"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
               </svg>
               Current Vehicles
             </h2>
             <div className="space-y-4 sm:space-y-6 md:space-y-8">
-              {[
-                {
-                  plateNumber: "ABC 123",
-                  checkIn: "10:30 AM",
-                  duration: "2h 30m",
-                  fee: "$5.00",
-                  status: "Leaving",
-                },
-                {
-                  plateNumber: "XYZ 789",
-                  checkIn: "11:45 AM",
-                  duration: "1h 15m",
-                  fee: "$3.00",
-                  status: "Active",
-                },
-                {
-                  plateNumber: "DEF 456",
-                  checkIn: "09:15 AM",
-                  duration: "3h 45m",
-                  fee: "$7.50",
-                  status: "Active",
-                },
-              ].map((vehicle, index) => (
+                {[...parkingLotRecord].reverse().map((vehicle: any, index: any) => (
                 <div
-                  key={index}
-                  className="border border-gray-100 rounded-2xl p-4 sm:p-6 md:p-8 hover:bg-white/95 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                key={vehicle._id}
+                className="border border-gray-100 rounded-2xl p-4 sm:p-6 md:p-8 hover:bg-white/95 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                      <p className="font-bold text-gray-800 text-xl sm:text-2xl mb-2 sm:mb-3">
-                        {vehicle.plateNumber}
-                      </p>
-                      <p className="text-gray-600 text-base sm:text-lg">
-                        Check-in: {vehicle.checkIn}
-                      </p>
-                      <p className="text-gray-600 text-base sm:text-lg">
-                        Duration: {vehicle.duration}
-                      </p>
-                      <p className="text-indigo-600 font-semibold mt-2 sm:mt-4 text-lg sm:text-xl">
-                        Fee: {vehicle.fee}
-                      </p>
-                    </div>
-                    <span
-                      className={`${
-                        vehicle.status === "Leaving"
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-emerald-100 text-emerald-800"
-                      } px-4 sm:px-6 py-2 sm:py-3 rounded-full text-sm sm:text-base font-bold shadow-md hover:shadow-lg transition-shadow`}
-                    >
-                      {vehicle.status}
-                    </span>
-                  </div>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <p className="font-bold text-gray-800 text-xl sm:text-2xl mb-2 sm:mb-3">
+                  {vehicle.plateNumber || "Unknown Plate"}
+                  </p>
+                  <p className="text-gray-600 text-base sm:text-lg">
+                  {new Date(vehicle.time).toLocaleString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true,
+                  }) || "N/A"}
+                  </p>
                 </div>
-              ))}
+                </div>
+                </div>
+                ))}
             </div>
-          </motion.div>
+            </motion.div>
         </motion.div>
       </main>
     </>

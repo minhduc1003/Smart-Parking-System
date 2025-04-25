@@ -7,9 +7,33 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { userSelector } from "@/redux/selectors/userSelector";
 export default function TabTwoScreen() {
   const colorScheme = useColorScheme();
+  const [parkingLotRecord, setParkingLotRecord] = useState<any>([
+  
+]);
+  const { user } = useSelector(userSelector);
+  useEffect(() => {
+    fetch("http://103.109.37.60:3000/user-plate", {
+      method: "GET",
+      headers: {
+      "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+      plateNumber: user?.numberPlate, 
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+      setParkingLotRecord(data.userPlates);
+      })
+      .catch((error) => {
+      console.error(error);
+      });
+  }, []);
   return (
     <View style={{ flex: 1 }}>
       <ThemedView style={{ padding: 16, flex: 1 }}>
@@ -29,111 +53,53 @@ export default function TabTwoScreen() {
           showsVerticalScrollIndicator={false}
           style={{ marginTop: 30, flex: 1 }}
         >
-          {[
-            {
-              plateNumber: "ABC 123",
-              checkIn: "10:30 AM",
-              duration: "2h 30m",
-              fee: "$5.00",
-              status: "Leaving",
-            },
-            {
-              plateNumber: "XYZ 789",
-              checkIn: "11:45 AM",
-              duration: "1h 15m",
-              fee: "$3.00",
-              status: "Active",
-            },
-            {
-              plateNumber: "DEF 456",
-              checkIn: "09:15 AM",
-              duration: "3h 45m",
-              fee: "$7.50",
-              status: "Active",
-            },
-            {
-              plateNumber: "DEF 456",
-              checkIn: "09:15 AM",
-              duration: "3h 45m",
-              fee: "$7.50",
-              status: "Active",
-            },
-          ].map((vehicle, index) => (
+          {parkingLotRecord.map((vehicle: any, index: number) => (
             <ThemedView
               key={index}
               style={{
-                padding: 16,
-                marginVertical: 8,
-                borderRadius: 16,
-                backgroundColor: colorScheme === "dark" ? "#1F2937" : "#F3F4F6",
+          padding: 16,
+          marginVertical: 8,
+          borderRadius: 16,
+          backgroundColor: colorScheme === "dark" ? "#1F2937" : "#F3F4F6",
               }}
             >
               <ThemedView
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  backgroundColor:
-                    colorScheme === "dark" ? "#1F2937" : "#F3F4F6",
-                }}
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            backgroundColor:
+              colorScheme === "dark" ? "#1F2937" : "#F3F4F6",
+          }}
               >
-                <ThemedView
-                  style={{
-                    backgroundColor:
-                      colorScheme === "dark" ? "#1F2937" : "#F3F4F6",
-                  }}
-                >
-                  <ThemedText
-                    style={{
-                      fontSize: 20,
-                      fontWeight: "bold",
-                      marginBottom: 8,
-                    }}
-                  >
-                    {vehicle.plateNumber}
-                  </ThemedText>
-                  <ThemedText>Check-in: {vehicle.checkIn}</ThemedText>
-                  <ThemedText>Duration: {vehicle.duration}</ThemedText>
-                  <ThemedText
-                    style={{
-                      color: colorScheme === "dark" ? "#818CF8" : "#4F46E5",
-                      fontWeight: "600",
-                      marginTop: 8,
-                    }}
-                  >
-                    Fee: {vehicle.fee}
-                  </ThemedText>
-                </ThemedView>
-                <ThemedView
-                  style={{
-                    backgroundColor:
-                      vehicle.status === "Leaving"
-                        ? colorScheme === "dark"
-                          ? "#78350F"
-                          : "#FEF3C7"
-                        : colorScheme === "dark"
-                        ? "#064E3B"
-                        : "#D1FAE5",
-                    padding: 12,
-                    borderRadius: 20,
-                  }}
-                >
-                  <ThemedText
-                    style={{
-                      color:
-                        vehicle.status === "Leaving"
-                          ? colorScheme === "dark"
-                            ? "#FCD34D"
-                            : "#92400E"
-                          : colorScheme === "dark"
-                          ? "#6EE7B7"
-                          : "#065F46",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {vehicle.status}
-                  </ThemedText>
-                </ThemedView>
+          <ThemedView
+            style={{
+              backgroundColor:
+                colorScheme === "dark" ? "#1F2937" : "#F3F4F6",
+            }}
+          >
+            <ThemedText
+              style={{
+                fontSize: 20,
+                fontWeight: "bold",
+                marginBottom: 8,
+              }}
+            >
+              {vehicle.plateNumber}
+            </ThemedText>
+            <ThemedText>Check-in: {new Date(vehicle.entryTime).toLocaleString()}</ThemedText>
+            <ThemedText>Check-out: {new Date(vehicle.exitTime).toLocaleString()}</ThemedText>
+            <ThemedText>Duration: {Math.floor(vehicle.duration / 60)}m {vehicle.duration % 60}s</ThemedText>
+          </ThemedView>
+          <ThemedText
+            style={{
+              color: colorScheme === "dark" ? "#818CF8" : "#4F46E5",
+              fontWeight: "600",
+              fontSize: 20,
+            }}
+          >
+           {vehicle.fee / 100} vnđ
+          </ThemedText>
               </ThemedView>
             </ThemedView>
           ))}

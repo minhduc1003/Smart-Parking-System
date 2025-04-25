@@ -10,7 +10,7 @@ export default function Home() {
   const [exitDetails, setExitDetails] = useState({ duration: "", fee: "" });
 
   useEffect(() => {
-    const ws = new WebSocket("ws://vuondaoduc.io.vn:8080");
+    const ws = new WebSocket("ws://103.109.37.60:8080");
 
     ws.onopen = () => {
       console.log("Connected to WebSocket");
@@ -86,7 +86,7 @@ export default function Home() {
             </h2>
             <div className="relative w-[320px] h-[240px] mx-auto overflow-hidden rounded-xl shadow-lg">
               <iframe
-                src="http://192.168.1.102"
+                src="http://172.20.10.3"
                 className="absolute top-0 left-0 w-full h-full"
                 frameBorder={0}
                 allowFullScreen
@@ -143,7 +143,7 @@ export default function Home() {
             </h2>
             <div className="relative w-[320px] h-[240px] mx-auto overflow-hidden rounded-xl shadow-lg">
               <iframe
-                src="http://192.168.1.103"
+                src="http://172.20.10.5"
                 className="absolute top-0 left-0 w-full h-full"
                 allowFullScreen
                 style={{ border: "none" }}
