@@ -156,7 +156,7 @@ app.get("/api/get-plate", async (req, res)=>{
       res.status(500).send({ message: "Error fetching plate data", error });
   }
 })
-app.get("/user-plate", async (req, res) => {
+app.post("/user-plate", async (req, res) => {
   const plateNumber = req.body.plateNumber;
 
 
