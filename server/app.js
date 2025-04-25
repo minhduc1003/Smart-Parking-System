@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const WebSocket = require("ws");
 const userRouter = require("./routers/userRouter");
+const User = require("./models/userModel");
 const app = express();
 const port = 3000;
 const wsPort = 8080;
@@ -161,6 +162,7 @@ app.post("/get-out", async (req, res) => {
         }),
         "platesRecord"
       );
+
     console.log("Received exit request:", req.body);
     const plateNumber = req.body.plate;
     const exitTime = req.body.time;
@@ -182,6 +184,25 @@ app.post("/get-out", async (req, res) => {
       duration,
       fee,
     };
+
+    // Check if the user has enough balance
+    const user = await User.findOne({ username: plateNumber });
+    if (user) {
+      if (user.money >= fee) {
+        // Deduct the fee from the user's balance
+        user.money -= fee;
+        await user.save();
+        console.log("Fee deducted from user balance:", user);
+        exitData.paymentStatus = "auto";
+      } else {
+        console.log("Insufficient balance for user:", user);
+        exitData.paymentStatus = "manual";
+      }
+    } else {
+      console.log("No user found for plate number:", plateNumber);
+      exitData.paymentStatus = "manual";
+    }
+
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(
@@ -192,6 +213,7 @@ app.post("/get-out", async (req, res) => {
             exitTime: exitData.exitTime,
             duration: exitData.duration,
             fee: exitData.fee,
+            paymentStatus: exitData.paymentStatus,
           })
         );
       }
@@ -205,6 +227,41 @@ app.post("/get-out", async (req, res) => {
     res.status(500).send({ message: "Error recording exit", error });
   }
 });
+app.post("/in-not-found", async (req, res) => {
+  const time = req.body.time;
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      console.log({
+        type: "plate-in-not-found",
+        time: time,
+      });
+      client.send(
+        JSON.stringify({
+          type: "plate-in-not-found",
+          time: time,
+        })
+      );
+    }
+  })
+});
+app.post("/out-not-found", async (req, res) => {
+  const time = req.body.time;
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      console.log({
+        type: "plate-out-not-found",
+        time: time,
+      });
+      client.send(
+        JSON.stringify({
+          type: "plate-out-not-found",
+          time: time,
+        })
+      );
+    }
+  })
+});
+ 
 mongoose
   .connect(uri, {
     dbName: "smart_parking",

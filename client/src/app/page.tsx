@@ -10,7 +10,7 @@ export default function Home() {
   const [exitDetails, setExitDetails] = useState({ duration: "", fee: "" });
 
   useEffect(() => {
-    const ws = new WebSocket("ws://192.168.1.100:8080");
+    const ws = new WebSocket("ws://vuondaoduc.io.vn:8080");
 
     ws.onopen = () => {
       console.log("Connected to WebSocket");

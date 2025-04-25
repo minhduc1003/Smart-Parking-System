@@ -3,14 +3,16 @@
 #include <LiquidCrystal_I2C.h>
 #include <WebSocketsClient.h>
 
-#define CAR_SLOT 3
+#define CAR_SLOT 4
 #define IR_CAR1 15
 #define led_CAR1 2
 #define IR_CAR2 4
 #define led_CAR2 16
 #define IR_CAR3 17
 #define led_CAR3 5
-#define led_ALL 18
+#define IR_CAR4 18
+#define led_CAR4 19
+#define led_ALL 23
 
 WebSocketsClient webSocket;  // WebSocket client object
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -23,38 +25,30 @@ void TCA9548A(uint8_t bus) {
 }
 
 // Replace with your Wi-Fi credentials
-const char* ssid = "tang5-2.4";
-const char* password = "23102003";
-short gsArray_Sensor[CAR_SLOT] = {IR_CAR1, IR_CAR2, IR_CAR3};
-short gsArray_LED[CAR_SLOT] = {led_CAR1, led_CAR2, led_CAR3};
-const char* websocket_server = "192.168.1.100";  // Replace with your Node.js server's IP
+const char* ssid = "minhduc03";
+const char* password = "duc23102003";
+short gsArray_Sensor[CAR_SLOT] = {IR_CAR1, IR_CAR2, IR_CAR3,IR_CAR4};
+short gsArray_LED[CAR_SLOT] = {led_CAR1, led_CAR2, led_CAR3,led_CAR4};
+const char* websocket_server = "vuondaoduc.io.vn";  // Replace with your Node.js server's IP
 const int websocket_port = 8080;  // WebSocket port
 
-void loopShow() {
-  // Print a message to the LCD
-  delay(1000);
-  lcd.backlight(); // Turn on the backlight
-  lcd.setCursor(0, 0); // Column 0, Row 0
-  lcd.print("Hello, World!");
-  lcd.setCursor(0, 1); // Column 0, Row 1
-  lcd.print("ESP8266 + I2C LCD");
-}
 
 void vLCD_Display(short sCar_Slot, unsigned short sArray_Sensor[]) {
   TCA9548A(7);
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Slot Left: ");
+  lcd.print("Slots:");
   lcd.print(sCar_Slot);
+  lcd.print(" S1:");
+  lcd.print(sArray_Sensor[0] ? "F" : "E");
 
   lcd.setCursor(0, 1);
-  // Show all sensors status on second line
-  lcd.print("S1:");
-  lcd.print(sArray_Sensor[0] ? "F" : "E");
-  lcd.print(" S2:");
+  lcd.print("S2:");
   lcd.print(sArray_Sensor[1] ? "F" : "E");
   lcd.print(" S3:");
   lcd.print(sArray_Sensor[2] ? "F" : "E");
+  lcd.print(" S4:");
+  lcd.print(sArray_Sensor[3] ? "F" : "E");
 }
 
 unsigned short sIR_Detect(short sWhichSensor) {
@@ -78,9 +72,11 @@ void setup() {
   pinMode(IR_CAR1, INPUT_PULLUP);
   pinMode(IR_CAR2, INPUT_PULLUP);
   pinMode(IR_CAR3, INPUT_PULLUP);
+  pinMode(IR_CAR4, INPUT_PULLUP);
   pinMode(led_CAR1, OUTPUT);
   pinMode(led_CAR2, OUTPUT);
   pinMode(led_CAR3, OUTPUT);
+  pinMode(led_CAR4, OUTPUT);
   pinMode(led_ALL, OUTPUT);
   
   while (WiFi.status() != WL_CONNECTED) {
@@ -112,8 +108,8 @@ void setup() {
 }
 
 void loop() {
-  webSocket.loop();
-  unsigned short usSensorStatus[CAR_SLOT] = {0, 0, 0};
+  webSocket.loop(); 
+  unsigned short usSensorStatus[CAR_SLOT] = {0, 0, 0, 0};
   short sCar_Slot = CAR_SLOT;
   
   for(short i = 0; i < CAR_SLOT; i++) {
@@ -195,7 +191,7 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
         Serial.println("Entry time: " + entryTime);
         
         // Wait a few seconds before returning to normal display
-        delay(5000);
+        delay(10000);
       }
       
       if (message.indexOf("\"type\":\"plate-exit\"") >= 0) {
@@ -205,11 +201,12 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
         String plateNumber = message.substring(plateIndex, plateEndIndex);
         
         int feeIndex = message.indexOf("\"fee\":") + 6;
-        int feeEndIndex = message.indexOf("}", feeIndex);
-        if (message.indexOf(",", feeIndex) > 0 && message.indexOf(",", feeIndex) < feeEndIndex) {
-          feeEndIndex = message.indexOf(",", feeIndex);
-        }
+        int feeEndIndex = message.indexOf(",", feeIndex);
         String fee = message.substring(feeIndex, feeEndIndex);
+
+        int paymentStatusIndex = message.indexOf("\"paymentStatus\":\"") + 17;
+        int paymentStatusEndIndex = message.indexOf("\"", paymentStatusIndex);
+        String paymentStatus = message.substring(paymentStatusIndex, paymentStatusEndIndex);
         
         // Display on LCD
         TCA9548A(6);
@@ -217,13 +214,57 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
         lcd.setCursor(0, 0);
         lcd.print("Exit: " + plateNumber);
         lcd.setCursor(0, 1);
-        lcd.print("Fee: " + fee);
+        lcd.print("Fee: " + fee + " " + paymentStatus);
         
         Serial.println("Exit plate: " + plateNumber);
         Serial.println("Fee: " + fee);
+        Serial.println("Payment Status: " + paymentStatus);
         
         // Wait before returning to normal display
-        delay(5000);
+        delay(10000);
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Smart Parking");
+        lcd.setCursor(0, 1);
+        lcd.print("Drive safely!");
+      }
+      if(message.indexOf("\"type\":\"plate-in-not-found\"") >= 0) {
+        // Extract the time from the message
+        int timeIndex = message.indexOf("\"time\":\"") + 8; 
+        int timeEndIndex = message.indexOf("\"", timeIndex);
+        String entryTime = message.substring(timeIndex, timeEndIndex);
+        
+        // Display on LCD
+        TCA9548A(7);
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Not Found plate");
+        lcd.setCursor(0, 1);
+        lcd.print("Time: " + entryTime);
+        
+       
+        
+        // Wait before returning to normal display
+        delay(2000);
+      }
+      if(message.indexOf("\"type\":\"plate-out-not-found\"") >= 0) {
+        // Extract the time from the message
+        int timeIndex = message.indexOf("\"time\":\"") + 8; 
+        int timeEndIndex = message.indexOf("\"", timeIndex);
+        String entryTime = message.substring(timeIndex, timeEndIndex);
+        
+        // Display on LCD
+        TCA9548A(6);
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Not Found plate");
+        lcd.setCursor(0, 1);
+        lcd.print("Time: " + entryTime);
+        
+       
+        
+        // Wait before returning to normal display
+        delay(2000);
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print("Smart Parking");

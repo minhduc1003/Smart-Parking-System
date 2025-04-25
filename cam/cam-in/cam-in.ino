@@ -7,8 +7,8 @@
 #include <ESP32Servo.h>
 #include <time.h>
 // Configuration Constants
-#define WIFI_SSID "tang5-2.4"
-#define WIFI_PASSWORD "23102003"
+#define WIFI_SSID "minhduc03"
+#define WIFI_PASSWORD "duc23102003"
 
 // Pin Definitions
 #define IR_SENSOR_IN 13
@@ -36,10 +36,11 @@
 // API Configuration
 const char* API_URL = "https://api.platerecognizer.com/v1/plate-reader/";
 const char* API_TOKEN = "3585a740fccd9b2efa968b0ffa84bb99a9fcbc7d";
-const char* FORWARD_URL = "http://192.168.1.100:3000/get-in";
+const char* FORWARD_URL = "http://vuondaoduc.io.vn:3000/get-in";
+const char* FORWARD_URL_NOTFOUND = "http://vuondaoduc.io.vn:3000/in-not-found";
 // Timing and Control
 #define SENSOR_COOLDOWN_MS 5000
-#define BARRIER_DELAY_MS 2000
+#define BARRIER_DELAY_MS 200
 #define STREAM_FPS_INTERVAL_MS 40
 
 // Global Objects
@@ -64,12 +65,7 @@ String extractJsonStringValue(const String& jsonString, const String& key);
 void setup() {
   Serial.begin(115200);
   
-  // Check for PSRAM
-  if(!psramFound()) {
-    Serial.println("PSRAM not found");
-  } else {
-    Serial.println("PSRAM found");
-  }
+
 
   // Connect to Wi-Fi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -105,13 +101,11 @@ void loop() {
 }
 
 void openBarrier() {
-  Serial.println("Barrier Opens");
   barrierServo.write(180);
   delay(BARRIER_DELAY_MS);
 }
 
 void closeBarrier() {
-  Serial.println("Barrier Closes");
   barrierServo.write(0);
   delay(BARRIER_DELAY_MS);
 }
@@ -143,12 +137,10 @@ void setupCamera() {
     config.frame_size = FRAMESIZE_QVGA;
     config.jpeg_quality = 4;  // Higher quality (lower is better, but uses more memory)
     config.fb_count = 1;       // Reduce buffer count to minimize memory usage
-    Serial.println("PSRAM found");
   } else {
     config.frame_size = FRAMESIZE_QVGA;
     config.jpeg_quality = 4;  // Lower quality to use less memory
     config.fb_count = 1;
-    Serial.println("WARNING: Running without PSRAM will limit performance");
   }
 
   esp_err_t err = esp_camera_init(&config);
@@ -157,12 +149,6 @@ void setupCamera() {
     delay(1000);
     ESP.restart();
   }
-  
-  // sensor_t *s = esp_camera_sensor_get();
-  // if (s) {
-  //    s->set_vflip(s, 1);
-  //    s->set_hmirror(s, 1);
-  // }
 }
 
 void handleStream() {
@@ -278,7 +264,6 @@ void captureAndSendImage() {
   if (httpCode > 0) {
     String response = http.getString();
     Serial.printf("Full API Response (%d bytes):\n%s\n", response.length(), response.c_str());
-    openBarrier();
     if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_CREATED) {
       String plateNumber = extractJsonStringValue(response, "plate");
       if (plateNumber != "") {
@@ -302,7 +287,21 @@ void captureAndSendImage() {
         }
         httpForward.end();
       } else {
-        Serial.println("WARNING: No plate detected in response");
+        Serial.println("Plate not found, forwarding to not-found URL...");
+        HTTPClient httpForwardNotFound;
+        httpForwardNotFound.begin(FORWARD_URL_NOTFOUND);
+        httpForwardNotFound.addHeader("Content-Type", "application/json");
+        
+        String jsonPayload = "{\"time\":\"" + currentTime + "\"}";
+        Serial.printf("Forward payload: %s\n", jsonPayload.c_str());
+        
+        int forwardCode = httpForwardNotFound.POST(jsonPayload);
+        if (forwardCode == HTTP_CODE_OK) {
+          Serial.println("SUCCESS: Data forwarded to not-found URL");
+        } else {
+          Serial.printf("ERROR: Forward failed (%d): %s\n", forwardCode, httpForwardNotFound.errorToString(forwardCode).c_str());
+        }
+        httpForwardNotFound.end();
       }
     } else {
       Serial.printf("ERROR: API returned %d\n", httpCode);
