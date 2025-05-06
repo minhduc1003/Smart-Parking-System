@@ -26,7 +26,9 @@
 
 // Global Objects
 WebServer server(80);
-
+unsigned long frameCount = 0;
+unsigned long lastFPSCheck = 0;
+float currentFPS = 0.0;
 // Function Prototypes
 void setupCamera();
 void handleStream();
@@ -91,6 +93,7 @@ void setupCamera() {
         config.jpeg_quality = 4;
         config.fb_count = 1;
         Serial.println("PSRAM found");
+        config.grab_mode = CAMERA_GRAB_LATEST; // Get latest frame
     } else {
         config.frame_size = FRAMESIZE_QVGA;
         config.jpeg_quality = 4;
@@ -111,15 +114,27 @@ void handleStream() {
     client.write("HTTP/1.1 200 OK\r\nContent-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n", 78);
 
     while (client.connected()) {
+        // FPS calculation
+        unsigned long now = millis();
+        frameCount++;
+        
+        if (now - lastFPSCheck >= 1000) { // Calculate FPS every second
+            currentFPS = frameCount * 1000.0 / (now - lastFPSCheck);
+            Serial.printf("FPS: %.2f\n", currentFPS);
+            frameCount = 0;
+            lastFPSCheck = now;
+        }
+
         camera_fb_t *fb = esp_camera_fb_get();
         if (fb) {
             client.write("--frame\r\nContent-Type: image/jpeg\r\n\r\n", 37);
             client.write(fb->buf, fb->len);
             client.write("\r\n", 2);
             esp_camera_fb_return(fb);
-            delay(40); // Stream at ~25 FPS
+            // Reduce delay to increase FPS
+            delay(10); // Stream at ~100 FPS (theoretical maximum)
         } else {
-            delay(50);
+            delay(10);
         }
         yield();
     }
