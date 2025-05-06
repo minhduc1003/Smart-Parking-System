@@ -14,11 +14,11 @@
 #define led_CAR4 19
 #define led_ALL 23
 #define CAR_SLOT2 3
-#define led_park2_S1 33
+#define IR_park2_S1 33
 #define led_park2_L1 32
-#define led_park2_S2 14
+#define IR_park2_S2 14
 #define led_park2_L2 27
-#define led_park1_S3 26
+#define IR_park1_S3 26
 #define led_park1_L3 25
 WebSocketsClient webSocket;  // WebSocket client object
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -97,6 +97,12 @@ void setup() {
   pinMode(IR_CAR2, INPUT_PULLUP);
   pinMode(IR_CAR3, INPUT_PULLUP);
   pinMode(IR_CAR4, INPUT_PULLUP);
+  pinMode(IR_park2_S1, INPUT_PULLUP);
+  pinMode(IR_park2_S2, INPUT_PULLUP);
+  pinMode(IR_park1_S3, INPUT_PULLUP);
+  pinMode(led_park2_L1, OUTPUT);
+  pinMode(led_park2_L2, OUTPUT);
+  pinMode(led_park1_L3, OUTPUT);
   pinMode(led_CAR1, OUTPUT);
   pinMode(led_CAR2, OUTPUT);
   pinMode(led_CAR3, OUTPUT);

@@ -27,7 +27,7 @@ export default function TabThreeScreen() {
     },
     {
       location: "32 Nguyễn Công Chứ",
-      slot: [1, 1],
+      slot: [0, 0, 0],
     },
     {
       location: "68 Lê Văn Lương",
@@ -53,6 +53,7 @@ export default function TabThreeScreen() {
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
+        console.log(message);
         if (message.type === "slot-update") {
           setSlotStatus([
             {
