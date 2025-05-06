@@ -20,58 +20,68 @@ import { useEffect, useState } from "react";
 
 export default function TabThreeScreen() {
   const colorScheme = useColorScheme();
-  const [slotStatus, setSlotStatus] = useState<any>([{
-    location:"54 Triều Khúc (DH CNGTVT)",
-    slot:[0,0,0,0]
-  },{
-    location:"32 Nguyễn Công Chứ",
-    slot:[1, 1]
-  },{
-    location:"68 Lê Văn Lương",
-    slot:[1, 1, 1, 1]
-  }]); // Initial state for parking slots
-  const [selectedLocation, setSelectedLocation] = useState("Select Parking Area");
+  const [slotStatus, setSlotStatus] = useState<any>([
+    {
+      location: "54 Triều Khúc (DH CNGTVT)",
+      slot: [0, 0, 0, 0],
+    },
+    {
+      location: "32 Nguyễn Công Chứ",
+      slot: [1, 1],
+    },
+    {
+      location: "68 Lê Văn Lương",
+      slot: [1, 1, 1, 1],
+    },
+  ]); // Initial state for parking slots
+  const [selectedLocation, setSelectedLocation] = useState(
+    "Select Parking Area"
+  );
   const [locationExpanded, setLocationExpanded] = useState(false);
   const openGoogleMaps = (location: string) => {
     const query = encodeURIComponent(location);
     const url = `https://www.google.com/maps/search/?api=1&query=${query}`;
     Linking.openURL(url);
   };
-    useEffect(() => {
-      const ws = new WebSocket("ws://103.109.37.60:8080");
-  
-      ws.onopen = () => {
-        console.log("Connected to WebSocket");
-      };
-  
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          if (message.type === "slot-update") {
-            setSlotStatus([{
-              location:"54 Triều Khúc (DH CNGTVT)",
-              slot:message.slots
-            },{
-              location:"32 Nguyễn Công Chứ",
-              slot:[1, 1]
-            },{
-              location:"68 Lê Văn Lương",
-              slot:[1, 1, 1, 1]
-            }] );
-          }
-        } catch (error) {
-          console.error("Failed to parse WebSocket message:", error);
+  useEffect(() => {
+    const ws = new WebSocket("ws://160.250.246.12:8080");
+
+    ws.onopen = () => {
+      console.log("Connected to WebSocket");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === "slot-update") {
+          setSlotStatus([
+            {
+              location: "54 Triều Khúc (DH CNGTVT)",
+              slot: message?.slots || [0, 0, 0, 0],
+            },
+            {
+              location: "32 Nguyễn Công Chứ",
+              slot: message?.slots2 || [0, 0],
+            },
+            {
+              location: "68 Lê Văn Lương",
+              slot: [1, 1, 1, 1],
+            },
+          ]);
         }
-      };
-  
-      ws.onclose = () => {
-        console.log("Disconnected from WebSocket");
-      };
-  
-      return () => {
-        ws.close();
-      };
-    }, []);
+      } catch (error) {
+        console.error("Failed to parse WebSocket message:", error);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("Disconnected from WebSocket");
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
   return (
     <>
       <View style={{ flex: 1 }}>
@@ -121,7 +131,6 @@ export default function TabThreeScreen() {
                       setSelectedLocation(location);
                       setLocationExpanded(false);
                       // Update slotStatus based on location selection
-                      
                     }}
                   >
                     <ThemedText
@@ -150,62 +159,64 @@ export default function TabThreeScreen() {
                 marginBottom: 100,
               }}
             >
-                {slotStatus
-                .filter((slotData: any) => slotData.location === selectedLocation)
+              {slotStatus
+                .filter(
+                  (slotData: any) => slotData.location === selectedLocation
+                )
                 .flatMap((slotData: any) => slotData.slot)
                 .map((slot: any, i: any) => (
                   <ThemedView
-                  key={i}
-                  style={{
-                    flex: 1,
-                    minWidth: "30%",
-                    padding: 16,
-                    borderRadius: 16,
-                    backgroundColor:
-                    colorScheme === "dark"
-                      ? slot === 1
-                      ? "rgba(127, 29, 29, 0.6)"
-                      : "rgba(6, 78, 59, 0.6)"
-                      : slot === 1
-                      ? "rgba(254, 226, 226, 0.8)"
-                      : "rgba(209, 250, 229, 0.8)",
-                    borderWidth: 1,
-                    borderColor:
-                    colorScheme === "dark"
-                      ? slot === 1
-                      ? "rgba(185, 28, 28, 0.8)"
-                      : "rgba(5, 150, 105, 0.8)"
-                      : slot === 1
-                      ? "rgba(252, 165, 165, 0.8)"
-                      : "rgba(110, 231, 183, 0.8)",
-                    alignItems: "center",
-                    transform: [{ scale: 1 }],
-                  }}
-                  >
-                  <ThemedText
+                    key={i}
                     style={{
-                    fontSize: 18,
-                    fontWeight: "bold",
-                    marginBottom: 8,
+                      flex: 1,
+                      minWidth: "30%",
+                      padding: 16,
+                      borderRadius: 16,
+                      backgroundColor:
+                        colorScheme === "dark"
+                          ? slot === 1
+                            ? "rgba(127, 29, 29, 0.6)"
+                            : "rgba(6, 78, 59, 0.6)"
+                          : slot === 1
+                          ? "rgba(254, 226, 226, 0.8)"
+                          : "rgba(209, 250, 229, 0.8)",
+                      borderWidth: 1,
+                      borderColor:
+                        colorScheme === "dark"
+                          ? slot === 1
+                            ? "rgba(185, 28, 28, 0.8)"
+                            : "rgba(5, 150, 105, 0.8)"
+                          : slot === 1
+                          ? "rgba(252, 165, 165, 0.8)"
+                          : "rgba(110, 231, 183, 0.8)",
+                      alignItems: "center",
+                      transform: [{ scale: 1 }],
                     }}
                   >
-                    Slot {i + 1}
-                  </ThemedText>
-                  <ThemedText
-                    style={{
-                    fontSize: 14,
-                    color:
-                      colorScheme === "dark"
-                      ? slot === 1
-                        ? "rgba(248, 113, 113, 0.9)"
-                        : "rgba(34, 197, 94, 0.9)"
-                      : slot === 1
-                      ? "rgba(220, 38, 38, 0.9)"
-                      : "rgba(5, 150, 105, 0.9)",
-                    }}
-                  >
-                    {slot === 1 ? "Occupied" : "Available"}
-                  </ThemedText>
+                    <ThemedText
+                      style={{
+                        fontSize: 18,
+                        fontWeight: "bold",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Slot {i + 1}
+                    </ThemedText>
+                    <ThemedText
+                      style={{
+                        fontSize: 14,
+                        color:
+                          colorScheme === "dark"
+                            ? slot === 1
+                              ? "rgba(248, 113, 113, 0.9)"
+                              : "rgba(34, 197, 94, 0.9)"
+                            : slot === 1
+                            ? "rgba(220, 38, 38, 0.9)"
+                            : "rgba(5, 150, 105, 0.9)",
+                      }}
+                    >
+                      {slot === 1 ? "Occupied" : "Available"}
+                    </ThemedText>
                   </ThemedView>
                 ))}
             </ThemedView>

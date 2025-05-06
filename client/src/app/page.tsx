@@ -10,7 +10,7 @@ export default function Home() {
   const [exitDetails, setExitDetails] = useState({ duration: "", fee: "" });
 
   useEffect(() => {
-    const ws = new WebSocket("ws://103.109.37.60:8080");
+    const ws = new WebSocket("ws://160.250.246.12:8080");
 
     ws.onopen = () => {
       console.log("Connected to WebSocket");

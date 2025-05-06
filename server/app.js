@@ -28,6 +28,7 @@ wss.on("connection", (ws) => {
           JSON.stringify({
             type: "slot-update",
             slots: data.slots,
+            slots2: data.slots2,
           })
         );
         if (data.type === "lightStatus") {
@@ -137,28 +138,28 @@ app.post("/get-in", async (req, res) => {
     res.status(500).send({ message: "Error saving plate data", error });
   }
 });
-app.get("/api/get-plate", async (req, res)=>{
+app.get("/api/get-plate", async (req, res) => {
   try {
     const plates =
-    mongoose.models.plates ||
-    mongoose.model(
-      "plates",
-      new mongoose.Schema({
-        plateNumber: String,
-        time: String,
-      }),
-      "plates"
-    );
-  const plateData = await plates.find({});
-  res.status(200).send({ message: "Plate data fetched successfully", plateData });
+      mongoose.models.plates ||
+      mongoose.model(
+        "plates",
+        new mongoose.Schema({
+          plateNumber: String,
+          time: String,
+        }),
+        "plates"
+      );
+    const plateData = await plates.find({});
+    res
+      .status(200)
+      .send({ message: "Plate data fetched successfully", plateData });
   } catch (error) {
-        
-      res.status(500).send({ message: "Error fetching plate data", error });
+    res.status(500).send({ message: "Error fetching plate data", error });
   }
-})
+});
 app.post("/user-plate", async (req, res) => {
   const plateNumber = req.body.plateNumber;
-
 
   try {
     const plates =
@@ -177,7 +178,9 @@ app.post("/user-plate", async (req, res) => {
 
     const userPlates = await plates.find({ plateNumber });
 
-    res.status(200).send({ message: "User plates fetched successfully", userPlates });
+    res
+      .status(200)
+      .send({ message: "User plates fetched successfully", userPlates });
   } catch (error) {
     res.status(500).send({ message: "Error fetching user plates", error });
   }
@@ -230,7 +233,6 @@ app.post("/get-out", async (req, res) => {
       duration,
       fee,
     };
-
 
     // Check if the user has enough balance
     const user = await User.findOne({ username: plateNumber });
@@ -289,7 +291,7 @@ app.post("/in-not-found", async (req, res) => {
         })
       );
     }
-  })
+  });
 });
 app.post("/out-not-found", async (req, res) => {
   const time = req.body.time;
@@ -306,9 +308,9 @@ app.post("/out-not-found", async (req, res) => {
         })
       );
     }
-  })
+  });
 });
- 
+
 mongoose
   .connect(uri, {
     dbName: "smart_parking",

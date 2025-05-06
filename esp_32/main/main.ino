@@ -13,7 +13,13 @@
 #define IR_CAR4 18
 #define led_CAR4 19
 #define led_ALL 23
-
+#define CAR_SLOT2 3
+#define led_park2_S1 33
+#define led_park2_L1 32
+#define led_park2_S2 14
+#define led_park2_L2 27
+#define led_park1_S3 26
+#define led_park1_L3 25
 WebSocketsClient webSocket;  // WebSocket client object
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
@@ -29,6 +35,8 @@ const char* ssid = "minhduc03";
 const char* password = "duc23102003";
 short gsArray_Sensor[CAR_SLOT] = {IR_CAR1, IR_CAR2, IR_CAR3,IR_CAR4};
 short gsArray_LED[CAR_SLOT] = {led_CAR1, led_CAR2, led_CAR3,led_CAR4};
+short gsArray_Sensor2[CAR_SLOT2] = {led_park2_S1, led_park2_S2,led_park1_S3};
+short gsArray_LED2[CAR_SLOT2] = {led_park2_L1, led_park2_L2, led_park1_L3};
 const char* websocket_server = "vuondaoduc.io.vn";  // Replace with your Node.js server's IP
 const int websocket_port = 8080;  // WebSocket port
 
@@ -50,7 +58,23 @@ void vLCD_Display(short sCar_Slot, unsigned short sArray_Sensor[]) {
   lcd.print(" S4:");
   lcd.print(sArray_Sensor[3] ? "F" : "E");
 }
+void vLCD_Display2(short sCar_Slot2, unsigned short sArray_Sensor[]) {
+  TCA9548A(5);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Slots:");
+  lcd.print(sCar_Slot2);
+  lcd.print(" S1:");
+  lcd.print(sArray_Sensor[0] ? "F" : "E");
 
+  lcd.setCursor(0, 1);
+  lcd.print("S2:");
+  lcd.print(sArray_Sensor[1] ? "F" : "E");
+  lcd.print(" S3:");
+  lcd.print(sArray_Sensor[2] ? "F" : "E");
+  lcd.print(" S4:");
+  lcd.print(sArray_Sensor[3] ? "F" : "E");
+}
 unsigned short sIR_Detect(short sWhichSensor) {
   if(digitalRead(sWhichSensor) == 0) {
     delay(50);
@@ -128,10 +152,32 @@ void loop() {
       statusMessage += ",";
     }
   }
-  statusMessage += "]}";
-
-  webSocket.sendTXT(statusMessage);  
+  
   vLCD_Display(sCar_Slot, usSensorStatus);
+  unsigned short usSensorStatus2[CAR_SLOT2] = {0, 0, 0};
+  short sCar_Slot2 = CAR_SLOT2;
+  
+  for(short i = 0; i < CAR_SLOT2; i++) {
+    usSensorStatus2[i] = sIR_Detect(gsArray_Sensor2[i]);
+    if (usSensorStatus2[i] == 1) {
+      digitalWrite(gsArray_LED2[i], HIGH);
+    } else {
+      digitalWrite(gsArray_LED2[i], LOW);
+    }
+  }
+  
+  // Add the second array to the message
+  statusMessage += "],\"slots2\":[";
+  for (short i = 0; i < CAR_SLOT2; i++) {
+    statusMessage += String(usSensorStatus2[i]);
+    if (i < CAR_SLOT2 - 1) {
+      statusMessage += ",";
+    }
+  }
+  statusMessage += "]}";
+  
+  webSocket.sendTXT(statusMessage);  // Send the combined message
+  vLCD_Display2(sCar_Slot2, usSensorStatus2);  
   delay(500);
 }
 

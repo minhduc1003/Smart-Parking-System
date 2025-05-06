@@ -7,7 +7,7 @@ const IotControl = () => {
   const toggleLight = () => {
     setLightStatus((prevStatus) => {
       const newStatus = !prevStatus;
-      const ws = new WebSocket("ws://103.109.37.60:8080");
+      const ws = new WebSocket("ws://160.250.246.12:8080");
       ws.onopen = () => {
         ws.send(JSON.stringify({ type: "lightStatus", status: newStatus }));
       };
@@ -24,7 +24,7 @@ const IotControl = () => {
     });
   };
   useEffect(() => {
-    fetch("http://103.109.37.60:3000/api/light-status")
+    fetch("http://160.250.246.12:3000/api/light-status")
       .then((response) => response.json())
       .then((data) => {
         setLightStatus(data.status);
