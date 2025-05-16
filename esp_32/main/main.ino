@@ -47,7 +47,11 @@ void vLCD_Display(short sCar_Slot, unsigned short sArray_Sensor[]) {
   lcd1.clear();
   lcd1.setCursor(0, 0);
   lcd1.print("Slots:");
-  lcd1.print(sCar_Slot);
+  int availableSlots = 0;
+  for(int i=0; i<CAR_SLOT; i++) {
+    if(!sArray_Sensor[i]) availableSlots++;
+  }
+  lcd1.print(availableSlots);
   lcd1.print(" S1:");
   lcd1.print(sArray_Sensor[0] ? "F" : "E");
 
@@ -64,7 +68,11 @@ void vLCD_Display2(short sCar_Slot2, unsigned short sArray_Sensor[]) {
   lcd3.clear();
   lcd3.setCursor(0, 0);
   lcd3.print("Slots:");
-  lcd3.print(sCar_Slot2);
+  int availableSlots = 0;
+  for(int i=0; i<CAR_SLOT2; i++) {
+    if(!sArray_Sensor[i]) availableSlots++;
+  }
+  lcd3.print(availableSlots);
   lcd3.print(" S1:");
   lcd3.print(sArray_Sensor[0] ? "F" : "E");
 
