@@ -19,6 +19,7 @@ import { userSelector } from "@/redux/selectors/userSelector";
 import { getUserAction, logoutAction } from "@/redux/reduxActions/userAction";
 import * as SecureStore from "expo-secure-store";
 import { useNavigation } from "@react-navigation/native";
+import axiosInstance from "@/api/axiosConfig";
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const [isLightOn, setIsLightOn] = useState(false);
@@ -32,8 +33,14 @@ export default function HomeScreen() {
   }, [user]);
   const checkToken = async () => {
     const token = await SecureStore.getItemAsync("secure_token");
+    axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     if (token) {
       dispatch(getUserAction());
+    } else {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "login" }],
+      });
     }
   };
   useEffect(() => {
@@ -56,8 +63,8 @@ export default function HomeScreen() {
                 Welcome back
               </ThemedText>
               <TouchableOpacity
-                onPress={() => {
-                  SecureStore.deleteItemAsync("secure_token");
+                onPress={async () => {
+                  await SecureStore.deleteItemAsync("secure_token");
                   dispatch(logoutAction());
                   navigation.reset({
                     index: 0,
@@ -130,7 +137,7 @@ export default function HomeScreen() {
                   marginBottom: 8,
                 }}
               >
-                {user?.money}
+                {user?.money} VNĐ
               </ThemedText>
             </ThemedView>
 

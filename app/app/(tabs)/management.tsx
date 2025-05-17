@@ -17,14 +17,15 @@ export default function TabTwoScreen() {
   const { user } = useSelector(userSelector);
   useEffect(() => {
     axios
-      .post("http://160.250.246.12:3000/user-plate", {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        params: {
-          plateNumber: user?.numberPlate,
-        },
-      })
+      .post(
+        "http://160.250.246.12:3000/user-plate",
+        { plateNumber: user?.numberPlate.toLocaleLowerCase() },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
       .then((response) => {
         setParkingLotRecord(response.data.userPlates);
       })
@@ -83,7 +84,7 @@ export default function TabTwoScreen() {
                       marginBottom: 8,
                     }}
                   >
-                    {vehicle.plateNumber}
+                    {vehicle.plateNumber.toUpperCase()}
                   </ThemedText>
                   <ThemedText>
                     Check-in: {new Date(vehicle.entryTime).toLocaleString()}
@@ -103,7 +104,7 @@ export default function TabTwoScreen() {
                     fontSize: 20,
                   }}
                 >
-                  {vehicle.fee / 100} vnđ
+                  {vehicle.fee} vnđ
                 </ThemedText>
               </ThemedView>
             </ThemedView>

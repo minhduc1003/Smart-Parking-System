@@ -24,21 +24,10 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
-  const [initialized, setInitialized] = useState("login");
   const getTokens = async () => {
     const token = await SecureStore.getItemAsync("secure_token");
     if (token) {
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      setInitialized("(tabs)");
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "(tabs)" }],
-      });
-    } else {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "login" }],
-      });
     }
   };
   useEffect(() => {
@@ -55,7 +44,7 @@ export default function RootLayout() {
   return (
     <Provider store={reduxStore}>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-        <Stack initialRouteName={initialized}>
+        <Stack>
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="signup" options={{ headerShown: false }} />
           <Stack.Screen name="deposit" options={{ headerShown: false }} />

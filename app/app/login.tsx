@@ -31,11 +31,12 @@ export default function LoginScreen() {
   const dispatch = useDispatch();
   const handleLogin = async () => {
     dispatch(loginAction(email, password));
-    console.log("asda");
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "(tabs)" }],
-    });
+    setTimeout(() => {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "(tabs)" }],
+      });
+    }, 500);
   };
 
   const handleSignup = () => {
@@ -45,6 +46,12 @@ export default function LoginScreen() {
     });
   };
 
+  const navigateToHome = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "(tabs)" }],
+    });
+  };
   const theme = {
     backgroundColor: isDark ? "#121212" : "#fff",
     textColor: isDark ? "#e0e0e0" : "#333",
@@ -54,7 +61,6 @@ export default function LoginScreen() {
     primaryColor: isDark ? "#10B981" : "#4ADE80",
     headerBackground: isDark ? "#047857" : "#059669",
   };
-
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={styles.container}>

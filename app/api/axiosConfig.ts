@@ -39,10 +39,7 @@ axiosInstance.interceptors.response.use(
   (response) => {
     return response;
   },
-  (error) => {
-    console.error("Axios error:", error);
-    return Promise.reject(error);
-  }
+  (error) => {}
 );
 
 export default axiosInstance;

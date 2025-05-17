@@ -223,8 +223,13 @@ app.post("/get-out", async (req, res) => {
       return res.status(404).send({ message: "No entry found for this plate" });
     }
     console.log("Entry found:", entry);
-    const duration = (new Date(exitTime) - new Date(entry.time)) / 1000; // in seconds
-    const fee = duration * 100; // 100 VND per second
+    const durationInSeconds =
+      (new Date(exitTime) - new Date(entry.time)) / 1000;
+    const durationInMinutes = Math.floor(durationInSeconds / 60);
+    const fee = durationInMinutes < 15 ? 5000 : 10000;
+    console.log(
+      `Parking duration: ${durationInMinutes} minutes, Fee: ${fee} VND`
+    );
 
     const exitData = {
       plateNumber,
