@@ -235,7 +235,7 @@ app.post("/get-out", async (req, res) => {
       plateNumber,
       entryTime: entry.time,
       exitTime,
-      duration,
+      duration:durationInMinutes,
       fee,
     };
 
