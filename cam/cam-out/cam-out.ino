@@ -6,6 +6,7 @@
 #include <WiFiUdp.h>
 #include <ESP32Servo.h>
 #include <time.h>
+
 // Configuration Constants
 #define WIFI_SSID "minhduc03"
 #define WIFI_PASSWORD "duc23102003"
@@ -52,7 +53,7 @@ Servo barrierServo;
 
 // Global State
 String currentTime = "";
-bool isCapturing = false;
+volatile bool isCapturing = false;
 
 // Function Prototypes
 void setupCamera();
@@ -61,54 +62,56 @@ void handleStream();
 void openBarrier();
 void closeBarrier();
 String getFormattedTime();
+
 String extractJsonStringValue(const String& jsonString, const String& key) {
   int keyIndex = jsonString.indexOf(key);
-  if (keyIndex == -1) {
-    return "";
-  }
+  if (keyIndex == -1) return "";
 
   int startIndex = jsonString.indexOf(':', keyIndex) + 2;
   int endIndex = jsonString.indexOf('"', startIndex);
 
-  if (startIndex == -1 || endIndex == -1) {
-    return "";
-  }
+  if (startIndex == -1 || endIndex == -1) return "";
 
   return jsonString.substring(startIndex, endIndex);
 }
+
 void setup() {
   Serial.begin(115200);
-
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nWiFi connected: " + WiFi.localIP().toString());
+  unsigned long startAttemptTime = millis();
 
-  // Initialize Hardware
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
+    delay(100);
+  }
+
+  if (WiFi.status() != WL_CONNECTED) {
+    ESP.restart();
+  }
+
   pinMode(IR_SENSOR_IN, INPUT_PULLUP);
   pinMode(IR_SENSOR_OUT, INPUT_PULLUP);
-  
+
   barrierServo.setPeriodHertz(50);
   barrierServo.attach(SERVO_PIN, 1000, 2000);
-  barrierServo.write(0); // Initial position (closed)
+  barrierServo.write(0);
 
-  // Initialize services
   setupCamera();
   timeClient.begin();
-  timeClient.update();
-  
-  // Set up server
+  timeClient.forceUpdate();
+
   server.on("/", handleStream);
   server.begin();
-  Serial.println("HTTP server started");
 }
 
 void loop() {
   server.handleClient();
-  timeClient.update();
-  currentTime = getFormattedTime();
+  static unsigned long lastTimeUpdate = 0;
+
+  if (millis() - lastTimeUpdate >= 5000) {
+    timeClient.update();
+    currentTime = getFormattedTime();
+    lastTimeUpdate = millis();
+  }
 }
 
 void openBarrier() {
@@ -143,14 +146,15 @@ void setupCamera() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
-  
+
   if (psramFound()) {
     config.frame_size = FRAMESIZE_QVGA;
-    config.jpeg_quality = 4;  // Higher quality (lower is better, but uses more memory)
-    config.fb_count = 1;       // Reduce buffer count to minimize memory usage
+    config.jpeg_quality = 10;
+    config.fb_count = 1;
+    config.fb_location = CAMERA_FB_IN_PSRAM;
   } else {
-    config.frame_size = FRAMESIZE_QVGA;
-    config.jpeg_quality = 4;  // Lower quality to use less memory
+    config.frame_size = FRAMESIZE_QQVGA;
+    config.jpeg_quality = 12;
     config.fb_count = 1;
   }
 
@@ -159,205 +163,171 @@ void setupCamera() {
     delay(1000);
     ESP.restart();
   }
-  
-  // sensor_t *s = esp_camera_sensor_get();
-  // if (s) {
-  //   //  s->set_vflip(s, 1);
-  //    s->set_hmirror(s, 1);
-  // }
+
+  sensor_t *s = esp_camera_sensor_get();
+  if (s) {
+    s->set_brightness(s, 0);
+    s->set_contrast(s, 0);
+    s->set_saturation(s, 0);
+    s->set_special_effect(s, 0);
+    s->set_whitebal(s, 1);
+    s->set_awb_gain(s, 1);
+    s->set_wb_mode(s, 0);
+    s->set_exposure_ctrl(s, 1);
+    s->set_aec2(s, 0);
+    s->set_ae_level(s, 0);
+    s->set_aec_value(s, 300);
+    s->set_gain_ctrl(s, 1);
+    s->set_agc_gain(s, 0);
+    s->set_gainceiling(s, (gainceiling_t)0);
+    s->set_bpc(s, 0);
+    s->set_wpc(s, 1);
+    s->set_raw_gma(s, 1);
+    s->set_lenc(s, 1);
+    s->set_hmirror(s, 0);
+    s->set_vflip(s, 0);
+    s->set_dcw(s, 1);
+    s->set_colorbar(s, 0);
+  }
 }
 
 void handleStream() {
   WiFiClient client = server.client();
   client.write("HTTP/1.1 200 OK\r\nContent-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n", 78);
 
-  unsigned long lastTimers[5] = {0}; // [FpsTime, TriggerTime, SensorCheck, DebugPrint, TimeUpdate]
-  unsigned long frameCount = 0;
-  
+  unsigned long lastSensorCheck = 0;
+  unsigned long lastTriggerTime = 0;
+
   while (client.connected()) {
-    // Update time every 5s
-    if (millis() - lastTimers[4] >= 5000) {
-      timeClient.update();
-      currentTime = getFormattedTime();
-      lastTimers[4] = millis();
-    }
-    
-    // Check IR sensors every 100ms
-    if (millis() - lastTimers[2] >= 100) {
-      lastTimers[2] = millis();
+    unsigned long currentMillis = millis();
+
+    if (currentMillis - lastSensorCheck >= 100) {
+      lastSensorCheck = currentMillis;
+
       int irInState = digitalRead(IR_SENSOR_IN);
       int irOutState = digitalRead(IR_SENSOR_OUT);
-      
-      // Debug print every 5s
-      if (millis() - lastTimers[3] >= 5000) {
-        Serial.printf("IR IN: %d, IR OUT: %d\n", irInState, irOutState);
-        lastTimers[3] = millis();
-      }
-      // Handle vehicle entry
-      if (irInState == LOW && millis() - lastTimers[1] > SENSOR_COOLDOWN_MS) {
-        lastTimers[1] = millis();
+
+      if (irInState == LOW && currentMillis - lastTriggerTime > SENSOR_COOLDOWN_MS) {
+        lastTriggerTime = currentMillis;
         isCapturing = true;
         captureAndSendImage();
         isCapturing = false;
       }
-      
-      // Handle vehicle exit
-      if (irOutState == LOW && millis() - lastTimers[1] > SENSOR_COOLDOWN_MS) {
-        lastTimers[1] = millis();
+
+      if (irOutState == LOW && currentMillis - lastTriggerTime > SENSOR_COOLDOWN_MS) {
+        lastTriggerTime = currentMillis;
         closeBarrier();
       }
     }
-    
-    // Handle streaming when not capturing
+
     if (!isCapturing) {
       camera_fb_t *fb = esp_camera_fb_get();
       if (fb) {
         client.write("--frame\r\nContent-Type: image/jpeg\r\n\r\n", 37);
-        client.write(fb->buf, fb->len);
+
+        size_t chunkSize = 1024;
+        for (size_t i = 0; i < fb->len; i += chunkSize) {
+          size_t remaining = fb->len - i;
+          size_t sendSize = (remaining < chunkSize) ? remaining : chunkSize;
+          client.write(fb->buf + i, sendSize);
+        }
+
         client.write("\r\n", 2);
         esp_camera_fb_return(fb);
-        
-        // Calculate FPS every second
-        frameCount++;
-        if (millis() - lastTimers[0] >= 1000) {
-          Serial.printf("Streaming: %.1f FPS\n", frameCount / ((millis() - lastTimers[0]) / 1000.0));
-          frameCount = 0;
-          lastTimers[0] = millis();
+
+        unsigned long frameEndTime = millis();
+        if (frameEndTime - currentMillis < STREAM_FPS_INTERVAL_MS) {
+          delay(STREAM_FPS_INTERVAL_MS - (frameEndTime - currentMillis));
         }
-        
-        delay(STREAM_FPS_INTERVAL_MS);
       }
     } else {
-      delay(50);
+      delay(10);
     }
-    
+
     yield();
   }
-  
-  Serial.println("Client disconnected");
 }
 
 void captureAndSendImage() {
+  unsigned long captureStart = millis();
   camera_fb_t *fb = esp_camera_fb_get();
   if (!fb) {
-    Serial.println("ERROR: Camera capture failed!");
     return;
   }
-  String boundary = "Boundary-" + String(millis());
-  String header = "--" + boundary + "\r\n";
-  header += "Content-Disposition: form-data; name=\"upload\"; filename=\"capture.jpg\"\r\n";
-  header += "Content-Type: image/jpeg\r\n\r\n";
-  String footer = "\r\n--" + boundary + "--\r\n";
-  
-  // Calculate total length
-  size_t totalLength = header.length() + fb->len + footer.length();
 
-  // 3. Initialize HTTP client
   HTTPClient http;
   http.begin(API_URL);
   http.addHeader("Authorization", "Token " + String(API_TOKEN));
-  http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
+  http.addHeader("Content-Type", "image/jpeg");
   http.addHeader("Connection", "close");
-  uint8_t* buffer = (uint8_t*)malloc(totalLength);
-  if (!buffer) {
-    Serial.println("ERROR: Memory allocation failed!");
-    esp_camera_fb_return(fb);
-    return;
-  }
-  size_t pos = 0;
-  memcpy(buffer + pos, header.c_str(), header.length());
-  pos += header.length();
-  memcpy(buffer + pos, fb->buf, fb->len);
-  pos += fb->len;
-  memcpy(buffer + pos, footer.c_str(), footer.length());
+
+  int httpCode = http.sendRequest("POST", fb->buf, fb->len);
   esp_camera_fb_return(fb);
-  int httpCode = http.sendRequest("POST", buffer, totalLength);
-  free(buffer); // Free the buffer after sending
-  Serial.printf("HTTP Status Code: %d\n", httpCode);
 
   if (httpCode > 0) {
     String response = http.getString();
-    Serial.printf("Full API Response (%d bytes):\n%s\n", response.length(), response.c_str());
+
     if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_CREATED) {
       String plateNumber = extractJsonStringValue(response, "plate");
-      if (plateNumber != "") {
-        Serial.printf("SUCCESS: Detected plate - %s\n", plateNumber.c_str());
 
-        // Forward to local server
-        Serial.println("Forwarding to local server...");
+      if (plateNumber != "") {
         HTTPClient httpForward;
         httpForward.begin(FORWARD_URL);
         httpForward.addHeader("Content-Type", "application/json");
-        
+
         String jsonPayload = "{\"plate\":\"" + plateNumber + "\",\"time\":\"" + currentTime + "\"}";
-        Serial.printf("Forward payload: %s\n", jsonPayload.c_str());
-        
         int forwardCode = httpForward.POST(jsonPayload);
+
         if (forwardCode == HTTP_CODE_OK) {
-          Serial.println("SUCCESS: Data forwarded");
           openBarrier();
-        } else {
-          Serial.printf("ERROR: Forward failed (%d): %s\n", forwardCode, httpForward.errorToString(forwardCode).c_str());
         }
+
         httpForward.end();
       } else {
-        Serial.println("Plate not found in response, forwarding to not-found URL...");
         HTTPClient httpForwardNotFound;
         httpForwardNotFound.begin(FORWARD_URL_NOTFOUND);
         httpForwardNotFound.addHeader("Content-Type", "application/json");
-        
-        String jsonPayload = "{\"time\":\"" + currentTime + "\"}";
-        Serial.printf("Forward payload: %s\n", jsonPayload.c_str());
-        
-        int forwardCode = httpForwardNotFound.POST(jsonPayload);
-        if (forwardCode == HTTP_CODE_OK) {
-          Serial.println("SUCCESS: Data forwarded to not-found URL");
-        } else {
-          Serial.printf("ERROR: Forward failed (%d): %s\n", forwardCode, httpForwardNotFound.errorToString(forwardCode).c_str());
-        }
+
+        int forwardCode = httpForwardNotFound.POST("{\"time\":\"" + currentTime + "\"}");
         httpForwardNotFound.end();
       }
-    } else {
-      Serial.printf("ERROR: API returned %d\n", httpCode);
     }
-  } else {
-    Serial.printf("ERROR: API request failed - %s\n", http.errorToString(httpCode).c_str());
   }
 
   http.end();
-  Serial.println("===== Finished captureAndSendImage =====\n");
 }
+
 String getFormattedTime() {
-  // Update the time from the NTP client
-  timeClient.update();
-  time_t rawtime =  timeClient.getEpochTime();
-  struct tm * ti;
-  ti = localtime (&rawtime);
+// Update the time from the NTP client
+timeClient.update();
+time_t rawtime =  timeClient.getEpochTime();
+struct tm * ti;
+ti = localtime (&rawtime);
 
- uint16_t year = ti->tm_year + 1900;
-   String yearStr = String(year);
+uint16_t year = ti->tm_year + 1900;
+ String yearStr = String(year);
 
-   uint8_t month = ti->tm_mon + 1;
-   String monthStr = month < 10 ? "0" + String(month) : String(month);
+ uint8_t month = ti->tm_mon + 1;
+ String monthStr = month < 10 ? "0" + String(month) : String(month);
 
-   uint8_t day = ti->tm_mday;
-   String dayStr = day < 10 ? "0" + String(day) : String(day);
-
-
-  int hour = timeClient.getHours();
+ uint8_t day = ti->tm_mday;
+ String dayStr = day < 10 ? "0" + String(day) : String(day);
 
 
-  int minute = timeClient.getMinutes();
+int hour = timeClient.getHours();
 
-   
-  int second = timeClient.getSeconds();
-  // Format the date and time into JavaScript-compatible format: yyyy-mm-ddTHH:MM:SS
-  String formattedDateTime =yearStr + "-" +
-                             monthStr + "-"+
-                             dayStr + "T" +
-                             (hour < 10 ? "0" : "") + String(hour) + ":" +
-                             (minute < 10 ? "0" : "") + String(minute) + ":" +
-                             (second < 10 ? "0" : "") + String(second);
 
-  return formattedDateTime;
+int minute = timeClient.getMinutes();
+
+ 
+int second = timeClient.getSeconds();
+// Format the date and time into JavaScript-compatible format: yyyy-mm-ddTHH:MM:SS
+String formattedDateTime =yearStr + "-" +
+                           monthStr + "-"+
+                           dayStr + "T" +
+                           (hour < 10 ? "0" : "") + String(hour) + ":" +
+                           (minute < 10 ? "0" : "") + String(minute) + ":" +
+                           (second < 10 ? "0" : "") + String(second);
+
+return formattedDateTime;
 }
