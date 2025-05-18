@@ -26,9 +26,6 @@
 
 // Global Objects
 WebServer server(80);
-unsigned long frameCount = 0;
-unsigned long lastFPSCheck = 0;
-float currentFPS = 0.0;
 // Function Prototypes
 void setupCamera();
 void handleStream();
@@ -36,21 +33,12 @@ void handleStream();
 void setup() {
     Serial.begin(115200);
 
-    // Check for PSRAM
-    if (!psramFound()) {
-        Serial.println("PSRAM not found");
-    } else {
-        Serial.println("PSRAM found");
-    }
 
     // Connect to Wi-Fi
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    Serial.print("Connecting to Wi-Fi");
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
-        Serial.print(".");
     }
-    Serial.println("\nWiFi connected: " + WiFi.localIP().toString());
 
     // Initialize camera
     setupCamera();
@@ -58,7 +46,6 @@ void setup() {
     // Set up server
     server.on("/", handleStream);
     server.begin();
-    Serial.println("HTTP server started");
 }
 
 void loop() {
@@ -88,56 +75,74 @@ void setupCamera() {
     config.xclk_freq_hz = 20000000;
     config.pixel_format = PIXFORMAT_JPEG;
 
-    if (psramFound()) {
-        config.frame_size = FRAMESIZE_QVGA;
-        config.jpeg_quality = 4;
-        config.fb_count = 1;
-        Serial.println("PSRAM found");
-        config.grab_mode = CAMERA_GRAB_LATEST; // Get latest frame
-    } else {
-        config.frame_size = FRAMESIZE_QVGA;
-        config.jpeg_quality = 4;
-        config.fb_count = 1;
-        Serial.println("WARNING: Running without PSRAM will limit performance");
-    }
+
+  if (psramFound()) {
+    config.frame_size = FRAMESIZE_QVGA;
+    config.jpeg_quality = 10;
+    config.fb_count = 1;
+    config.fb_location = CAMERA_FB_IN_PSRAM;
+  } else {
+    config.frame_size = FRAMESIZE_QQVGA;
+    config.jpeg_quality = 12;
+    config.fb_count = 1;
+  }
+
 
     esp_err_t err = esp_camera_init(&config);
     if (err != ESP_OK) {
-        Serial.printf("Camera init failed with error 0x%x", err);
         delay(1000);
         ESP.restart();
     }
+      sensor_t *s = esp_camera_sensor_get();
+  if (s) {
+    s->set_brightness(s, 0);
+    s->set_contrast(s, 0);
+    s->set_saturation(s, 0);
+    s->set_special_effect(s, 0);
+    s->set_whitebal(s, 1);
+    s->set_awb_gain(s, 1);
+    s->set_wb_mode(s, 0);
+    s->set_exposure_ctrl(s, 1);
+    s->set_aec2(s, 0);
+    s->set_ae_level(s, 0);
+    s->set_aec_value(s, 300);
+    s->set_gain_ctrl(s, 1);
+    s->set_agc_gain(s, 0);
+    s->set_gainceiling(s, (gainceiling_t)0);
+    s->set_bpc(s, 0);
+    s->set_wpc(s, 1);
+    s->set_raw_gma(s, 1);
+    s->set_lenc(s, 1);
+    s->set_hmirror(s, 0);
+    s->set_vflip(s, 0);
+    s->set_dcw(s, 1);
+    s->set_colorbar(s, 0);
+  }
 }
 
 void handleStream() {
-    WiFiClient client = server.client();
-    client.write("HTTP/1.1 200 OK\r\nContent-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n", 78);
+  WiFiClient client = server.client();
+  client.write("HTTP/1.1 200 OK\r\nContent-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n", 78);
 
-    while (client.connected()) {
-        // FPS calculation
-        unsigned long now = millis();
-        frameCount++;
-        
-        if (now - lastFPSCheck >= 1000) { // Calculate FPS every second
-            currentFPS = frameCount * 1000.0 / (now - lastFPSCheck);
-            Serial.printf("FPS: %.2f\n", currentFPS);
-            frameCount = 0;
-            lastFPSCheck = now;
-        }
+  while (client.connected()) {
+    camera_fb_t *fb = esp_camera_fb_get();
+    if (fb) {
+      client.write("--frame\r\nContent-Type: image/jpeg\r\n\r\n", 37);
 
-        camera_fb_t *fb = esp_camera_fb_get();
-        if (fb) {
-            client.write("--frame\r\nContent-Type: image/jpeg\r\n\r\n", 37);
-            client.write(fb->buf, fb->len);
-            client.write("\r\n", 2);
-            esp_camera_fb_return(fb);
-            // Reduce delay to increase FPS
-            delay(10); // Stream at ~100 FPS (theoretical maximum)
-        } else {
-            delay(10);
-        }
-        yield();
+      const size_t chunkSize = 512;
+      size_t bytesSent = 0;
+      while (bytesSent < fb->len) {
+        size_t toSend = min(chunkSize, fb->len - bytesSent);
+        client.write(fb->buf + bytesSent, toSend);
+        bytesSent += toSend;
+      }
+
+      client.write("\r\n", 2);
+      esp_camera_fb_return(fb);
+      delay(10); // slight delay between frames
+    } else {
+      delay(10);
     }
-
-    Serial.println("Client disconnected");
+    yield();
+  }
 }

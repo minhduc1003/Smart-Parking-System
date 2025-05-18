@@ -225,7 +225,7 @@ void handleStream() {
       if (fb) {
         client.write("--frame\r\nContent-Type: image/jpeg\r\n\r\n", 37);
 
-        size_t chunkSize = 1024;
+        size_t chunkSize = 512;
         for (size_t i = 0; i < fb->len; i += chunkSize) {
           size_t remaining = fb->len - i;
           size_t sendSize = (remaining < chunkSize) ? remaining : chunkSize;
@@ -249,27 +249,45 @@ void handleStream() {
 }
 
 void captureAndSendImage() {
-  unsigned long captureStart = millis();
   camera_fb_t *fb = esp_camera_fb_get();
-  if (!fb) {
-    return;
-  }
+  if (!fb) return;
+
+  String boundary = "Boundary-" + String(millis());
+  String header = "--" + boundary + "\r\n";
+  header += "Content-Disposition: form-data; name=\"upload\"; filename=\"capture.jpg\"\r\n";
+  header += "Content-Type: image/jpeg\r\n\r\n";
+  String footer = "\r\n--" + boundary + "--\r\n";
+
+  size_t totalLength = header.length() + fb->len + footer.length();
 
   HTTPClient http;
   http.begin(API_URL);
   http.addHeader("Authorization", "Token " + String(API_TOKEN));
-  http.addHeader("Content-Type", "image/jpeg");
+  http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
   http.addHeader("Connection", "close");
 
-  int httpCode = http.sendRequest("POST", fb->buf, fb->len);
+  uint8_t* buffer = (uint8_t*)malloc(totalLength);
+  if (!buffer) {
+    esp_camera_fb_return(fb);
+    return;
+  }
+
+  size_t pos = 0;
+  memcpy(buffer + pos, header.c_str(), header.length());
+  pos += header.length();
+  memcpy(buffer + pos, fb->buf, fb->len);
+  pos += fb->len;
+  memcpy(buffer + pos, footer.c_str(), footer.length());
+
   esp_camera_fb_return(fb);
+
+  int httpCode = http.sendRequest("POST", buffer, totalLength);
+  free(buffer);
 
   if (httpCode > 0) {
     String response = http.getString();
-
     if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_CREATED) {
       String plateNumber = extractJsonStringValue(response, "plate");
-
       if (plateNumber != "") {
         HTTPClient httpForward;
         httpForward.begin(FORWARD_URL);
@@ -277,18 +295,17 @@ void captureAndSendImage() {
 
         String jsonPayload = "{\"plate\":\"" + plateNumber + "\",\"time\":\"" + currentTime + "\"}";
         int forwardCode = httpForward.POST(jsonPayload);
-
         if (forwardCode == HTTP_CODE_OK) {
           openBarrier();
         }
-
         httpForward.end();
       } else {
         HTTPClient httpForwardNotFound;
         httpForwardNotFound.begin(FORWARD_URL_NOTFOUND);
         httpForwardNotFound.addHeader("Content-Type", "application/json");
 
-        int forwardCode = httpForwardNotFound.POST("{\"time\":\"" + currentTime + "\"}");
+        String jsonPayload = "{\"time\":\"" + currentTime + "\"}";
+        httpForwardNotFound.POST(jsonPayload);
         httpForwardNotFound.end();
       }
     }
@@ -296,6 +313,8 @@ void captureAndSendImage() {
 
   http.end();
 }
+
+
 
 String getFormattedTime() {
 // Update the time from the NTP client
