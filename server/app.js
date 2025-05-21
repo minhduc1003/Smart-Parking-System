@@ -235,12 +235,12 @@ app.post("/get-out", async (req, res) => {
       plateNumber,
       entryTime: entry.time,
       exitTime,
-      duration:durationInMinutes,
+      duration: durationInMinutes,
       fee,
     };
 
     // Check if the user has enough balance
-    const user = await User.findOne({ username: plateNumber });
+    const user = await User.findOne({ numberPlate: plateNumber });
     if (user) {
       if (user.money >= fee) {
         // Deduct the fee from the user's balance

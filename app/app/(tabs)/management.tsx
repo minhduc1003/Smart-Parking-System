@@ -92,10 +92,6 @@ export default function TabTwoScreen() {
                   <ThemedText>
                     Check-out: {new Date(vehicle.exitTime).toLocaleString()}
                   </ThemedText>
-                  <ThemedText>
-                    Duration: {Math.floor(vehicle.duration / 60)}m{" "}
-                    {vehicle.duration % 60}s
-                  </ThemedText>
                 </ThemedView>
                 <ThemedText
                   style={{

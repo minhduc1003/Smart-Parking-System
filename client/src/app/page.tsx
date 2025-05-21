@@ -19,12 +19,13 @@ export default function Home() {
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        console.log("Received message:", message);
         if (message.type === "slot-update") {
         } else if (message.type === "plate-entry") {
           setEntrancePlate(message.plateNumber);
           setEntranceTime(message.time);
         } else if (message.type === "plate-exit") {
+          console.log("Received message:", message);
+
           setExitPlate(message.plateNumber);
           setExitTime(message.exitTime);
           setExitDetails({
@@ -181,10 +182,6 @@ export default function Home() {
               )}
               {exitDetails.duration && (
                 <div className="bg-emerald-50/80 backdrop-blur-sm p-3 rounded-xl shadow-inner">
-                  <p className="text-sm text-emerald-700">
-                    <span className="font-semibold">Duration:</span>{" "}
-                    {exitDetails.duration}
-                  </p>
                   <p className="text-sm text-emerald-700 font-bold mt-1">
                     <span className="font-semibold">Fee:</span>{" "}
                     {Number(exitDetails.fee).toLocaleString("vi-VN")} VNĐ

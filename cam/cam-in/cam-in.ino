@@ -7,16 +7,13 @@
 #include <ESP32Servo.h>
 #include <time.h>
 
-// Configuration Constants
 #define WIFI_SSID "minhduc03"
 #define WIFI_PASSWORD "duc23102003"
 
-// Pin Definitions
 #define IR_SENSOR_IN 13
 #define IR_SENSOR_OUT 15
 #define SERVO_PIN 14
 
-// Camera pins for ESP32-CAM
 #define PWDN_GPIO_NUM 32
 #define RESET_GPIO_NUM -1
 #define XCLK_GPIO_NUM 0
@@ -34,28 +31,23 @@
 #define HREF_GPIO_NUM 23
 #define PCLK_GPIO_NUM 22
 
-// API Configuration
 const char* API_URL = "https://api.platerecognizer.com/v1/plate-reader/";
 const char* API_TOKEN = "3585a740fccd9b2efa968b0ffa84bb99a9fcbc7d";
 const char* FORWARD_URL = "http://vuondaoduc.io.vn:3000/get-in";
 const char* FORWARD_URL_NOTFOUND = "http://vuondaoduc.io.vn:3000/in-not-found";
 
-// Timing and Control
 #define SENSOR_COOLDOWN_MS 5000
 #define BARRIER_DELAY_MS 1000
 #define STREAM_FPS_INTERVAL_MS 40
 
-// Global Objects
 WebServer server(80);
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 25200); // UTC+7 offset
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 25200);
 Servo barrierServo;
 
-// Global State
 String currentTime = "";
 volatile bool isCapturing = false;
 
-// Function Prototypes
 void setupCamera();
 void captureAndSendImage();
 void handleStream();
@@ -248,8 +240,6 @@ void handleStream() {
   }
 }
 
-
-
 void captureAndSendImage() {
   camera_fb_t *fb = esp_camera_fb_get();
   if (!fb) return;
@@ -316,40 +306,31 @@ void captureAndSendImage() {
   http.end();
 }
 
-
-
-
 String getFormattedTime() {
-// Update the time from the NTP client
   timeClient.update();
-  time_t rawtime =  timeClient.getEpochTime();
-  struct tm * ti;
-  ti = localtime (&rawtime);
+  time_t rawtime = timeClient.getEpochTime();
+  struct tm *ti;
+  ti = localtime(&rawtime);
 
   uint16_t year = ti->tm_year + 1900;
- String yearStr = String(year);
+  String yearStr = String(year);
 
- uint8_t month = ti->tm_mon + 1;
- String monthStr = month < 10 ? "0" + String(month) : String(month);
+  uint8_t month = ti->tm_mon + 1;
+  String monthStr = month < 10 ? "0" + String(month) : String(month);
 
- uint8_t day = ti->tm_mday;
- String dayStr = day < 10 ? "0" + String(day) : String(day);
-
+  uint8_t day = ti->tm_mday;
+  String dayStr = day < 10 ? "0" + String(day) : String(day);
 
   int hour = timeClient.getHours();
-
-
   int minute = timeClient.getMinutes();
-
- 
   int second = timeClient.getSeconds();
-// Format the date and time into JavaScript-compatible format: yyyy-mm-ddTHH:MM:SS
-  String formattedDateTime =yearStr + "-" +
-                           monthStr + "-"+
-                           dayStr + "T" +
-                           (hour < 10 ? "0" : "") + String(hour) + ":" +
-                           (minute < 10 ? "0" : "") + String(minute) + ":" +
-                           (second < 10 ? "0" : "") + String(second);
+
+  String formattedDateTime = yearStr + "-" +
+                             monthStr + "-" +
+                             dayStr + "T" +
+                             (hour < 10 ? "0" : "") + String(hour) + ":" +
+                             (minute < 10 ? "0" : "") + String(minute) + ":" +
+                             (second < 10 ? "0" : "") + String(second);
 
   return formattedDateTime;
 }

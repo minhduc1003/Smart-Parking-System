@@ -20,27 +20,26 @@
 #define led_park2_L2 26
 #define IR_park2_S3 25
 #define led_park2_L3 33
-WebSocketsClient webSocket;  // WebSocket client object
+
+WebSocketsClient webSocket;
 LiquidCrystal_I2C lcd1(0x27, 16, 2);
 LiquidCrystal_I2C lcd2(0x27, 16, 2);
 LiquidCrystal_I2C lcd3(0x27, 16, 2);
 
 void TCA9548A(uint8_t bus) {
-  Wire.beginTransmission(0x70);  // TCA9548A address
-  Wire.write(1 << bus);          // send byte to select bus
+  Wire.beginTransmission(0x70);
+  Wire.write(1 << bus);
   Wire.endTransmission();
 }
 
-// Replace with your Wi-Fi credentials
 const char* ssid = "minhduc03";
 const char* password = "duc23102003";
-short gsArray_Sensor[CAR_SLOT] = {IR_CAR1, IR_CAR2, IR_CAR3,IR_CAR4};
-short gsArray_LED[CAR_SLOT] = {led_CAR1, led_CAR2, led_CAR3,led_CAR4};
-short gsArray_Sensor2[CAR_SLOT2] = {IR_park2_S1, IR_park2_S2,IR_park2_S3};
+short gsArray_Sensor[CAR_SLOT] = {IR_CAR1, IR_CAR2, IR_CAR3, IR_CAR4};
+short gsArray_LED[CAR_SLOT] = {led_CAR1, led_CAR2, led_CAR3, led_CAR4};
+short gsArray_Sensor2[CAR_SLOT2] = {IR_park2_S1, IR_park2_S2, IR_park2_S3};
 short gsArray_LED2[CAR_SLOT2] = {led_park2_L1, led_park2_L2, led_park2_L3};
-const char* websocket_server = "vuondaoduc.io.vn";  // Replace with your Node.js server's IP
-const int websocket_port = 8080;  // WebSocket port
-
+const char* websocket_server = "vuondaoduc.io.vn";
+const int websocket_port = 8080;
 
 void vLCD_Display(short sCar_Slot, unsigned short sArray_Sensor[]) {
   TCA9548A(4);
@@ -48,7 +47,7 @@ void vLCD_Display(short sCar_Slot, unsigned short sArray_Sensor[]) {
   lcd1.setCursor(0, 0);
   lcd1.print("Slots:");
   int availableSlots = 0;
-  for(int i=0; i<CAR_SLOT; i++) {
+  for(int i = 0; i < CAR_SLOT; i++) {
     if(!sArray_Sensor[i]) availableSlots++;
   }
   lcd1.print(availableSlots);
@@ -63,13 +62,14 @@ void vLCD_Display(short sCar_Slot, unsigned short sArray_Sensor[]) {
   lcd1.print(" S4:");
   lcd1.print(sArray_Sensor[3] ? "F" : "E");
 }
+
 void vLCD_Display2(short sCar_Slot2, unsigned short sArray_Sensor[]) {
   TCA9548A(5);
   lcd3.clear();
   lcd3.setCursor(0, 0);
   lcd3.print("Slots:");
   int availableSlots = 0;
-  for(int i=0; i<CAR_SLOT2; i++) {
+  for(int i = 0; i < CAR_SLOT2; i++) {
     if(!sArray_Sensor[i]) availableSlots++;
   }
   lcd3.print(availableSlots);
@@ -82,6 +82,7 @@ void vLCD_Display2(short sCar_Slot2, unsigned short sArray_Sensor[]) {
   lcd3.print(" S3:");
   lcd3.print(sArray_Sensor[2] ? "F" : "E");
 }
+
 unsigned short sIR_Detect(short sWhichSensor) {
   if(digitalRead(sWhichSensor) == 0) {
     delay(50);
@@ -123,31 +124,32 @@ void setup() {
   Serial.println("\nWi-Fi connected");
   
   TCA9548A(4);
-  lcd1.init();  // Initialize the first LCD
-  lcd1.backlight();  // Turn on backlight
+  lcd1.init();
+  lcd1.backlight();
   lcd1.clear();
   lcd1.setCursor(0, 0);
   lcd1.print("LCD 1 Initialized");
   
-  // Init LCD2 on bus number 1
   TCA9548A(6);
-  lcd2.init();  // Initialize the second LCD
-  lcd2.backlight();  // Turn on backlight
+  lcd2.init();
+  lcd2.backlight();
   lcd2.clear();
   lcd2.setCursor(0, 0);
   lcd2.print("Smart Parking");
   lcd2.setCursor(0, 1);
   lcd2.print("Drive safely!");
+  
   TCA9548A(5);
-  lcd3.init();  // Initialize the second LCD
-  lcd3.backlight();  // Turn on backlight
+  lcd3.init();
+  lcd3.backlight();
   lcd3.clear();
   lcd3.setCursor(0, 0);
   lcd3.print("LCD 3 Initialized");
+  
   Serial.print("ESP8266 MAC Address: ");
   Serial.println(WiFi.macAddress());
-  webSocket.begin(websocket_server, websocket_port);  // Start WebSocket connection
-  webSocket.onEvent(webSocketEvent);  // Register the WebSocket event handler
+  webSocket.begin(websocket_server, websocket_port);
+  webSocket.onEvent(webSocketEvent);
 }
 
 void loop() {
@@ -185,7 +187,6 @@ void loop() {
     }
   }
   
-  // Add the second array to the message
   statusMessage += "],\"slots2\":[";
   for (short i = 0; i < CAR_SLOT2; i++) {
     statusMessage += String(usSensorStatus2[i]);
@@ -195,7 +196,7 @@ void loop() {
   }
   statusMessage += "]}";
   
-  webSocket.sendTXT(statusMessage);  // Send the combined message
+  webSocket.sendTXT(statusMessage);
   vLCD_Display2(sCar_Slot2, usSensorStatus2);  
   delay(500);
 }
@@ -216,26 +217,21 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
       Serial.print("Received message: ");
       Serial.println((char*)payload);
       
-      // Parse the JSON message
-      // Check if the message is a JSON with type "lightStatus"
       if (message.indexOf("\"type\":\"light-status\"") >= 0 && message.indexOf("\"lightStatus\":") >= 0) {
-        // Find the value of lightStatus in the message
-        int statusIndex = message.indexOf("\"lightStatus\":") + 15;  // Skip past the "lightStatus": part
-        String statusValue = message.substring(statusIndex-1, statusIndex + 3);  // Get the boolean value
+        int statusIndex = message.indexOf("\"lightStatus\":") + 15;
+        String statusValue = message.substring(statusIndex-1, statusIndex + 3);
         Serial.print(statusValue);
         
-        // If status is "true", turn on the LED, otherwise turn it off
         if (statusValue == "true") {
-          digitalWrite(led_ALL, HIGH);  // Turn the LED on
+          digitalWrite(led_ALL, HIGH);
           Serial.println("LED is ON");
         } else {
-          digitalWrite(led_ALL, LOW);   // Turn the LED off
+          digitalWrite(led_ALL, LOW);
           Serial.println("LED is OFF");
         }
       }
       
       if (message.indexOf("\"type\":\"plate-entry\"") >= 0) {
-        // Extract the plate number and time from the message
         int plateIndex = message.indexOf("\"plateNumber\":\"") + 15;
         int plateEndIndex = message.indexOf("\"", plateIndex);
         String plateNumber = message.substring(plateIndex, plateEndIndex);
@@ -244,7 +240,6 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
         int timeEndIndex = message.indexOf("\"", timeIndex);
         String entryTime = message.substring(timeIndex, timeEndIndex);
         
-        // Display on LCD
         TCA9548A(4);
         lcd1.clear();
         lcd1.setCursor(0, 0);
@@ -255,12 +250,10 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
         Serial.println("Detected plate: " + plateNumber);
         Serial.println("Entry time: " + entryTime);
         
-        // Wait a few seconds before returning to normal display
         delay(10000);
       }
       
       if (message.indexOf("\"type\":\"plate-exit\"") >= 0) {
-        // Extract information from the message
         int plateIndex = message.indexOf("\"plateNumber\":\"") + 15;
         int plateEndIndex = message.indexOf("\"", plateIndex);
         String plateNumber = message.substring(plateIndex, plateEndIndex);
@@ -273,7 +266,6 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
         int paymentStatusEndIndex = message.indexOf("\"", paymentStatusIndex);
         String paymentStatus = message.substring(paymentStatusIndex, paymentStatusEndIndex);
         
-        // Display on LCD
         TCA9548A(6);
         lcd2.clear();
         lcd2.setCursor(0, 0);
@@ -285,7 +277,6 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
         Serial.println("Fee: " + fee);
         Serial.println("Payment Status: " + paymentStatus);
         
-        // Wait before returning to normal display
         delay(10000);
         lcd2.clear();
         lcd2.setCursor(0, 0);
@@ -293,13 +284,12 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
         lcd2.setCursor(0, 1);
         lcd2.print("Drive safely!");
       }
+      
       if(message.indexOf("\"type\":\"plate-in-not-found\"") >= 0) {
-        // Extract the time from the message
         int timeIndex = message.indexOf("\"time\":\"") + 8; 
         int timeEndIndex = message.indexOf("\"", timeIndex);
         String entryTime = message.substring(timeIndex, timeEndIndex);
         
-        // Display on LCD
         TCA9548A(4);
         lcd1.clear();
         lcd1.setCursor(0, 0);
@@ -307,18 +297,14 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
         lcd1.setCursor(0, 1);
         lcd1.print("Time: " + entryTime);
         
-       
-        
-        // Wait before returning to normal display
         delay(2000);
       }
+      
       if(message.indexOf("\"type\":\"plate-out-not-found\"") >= 0) {
-        // Extract the time from the message
         int timeIndex = message.indexOf("\"time\":\"") + 8; 
         int timeEndIndex = message.indexOf("\"", timeIndex);
         String entryTime = message.substring(timeIndex, timeEndIndex);
         
-        // Display on LCD
         TCA9548A(6);
         lcd2.clear();
         lcd2.setCursor(0, 0);
@@ -326,9 +312,6 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
         lcd2.setCursor(0, 1);
         lcd2.print("Time: " + entryTime);
         
-       
-        
-        // Wait before returning to normal display
         delay(2000);
         lcd2.clear();
         lcd2.setCursor(0, 0);
