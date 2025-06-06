@@ -52,59 +52,62 @@ export default function TabTwoScreen() {
           showsVerticalScrollIndicator={false}
           style={{ marginTop: 30, flex: 1 }}
         >
-          {parkingLotRecord.map((vehicle: any, index: number) => (
-            <ThemedView
-              key={index}
-              style={{
-                padding: 16,
-                marginVertical: 8,
-                borderRadius: 16,
-                backgroundColor: colorScheme === "dark" ? "#1F2937" : "#F3F4F6",
-              }}
-            >
+          {[...parkingLotRecord]
+            .reverse()
+            .map((vehicle: any, index: number) => (
               <ThemedView
+                key={index}
                 style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  padding: 16,
+                  marginVertical: 8,
+                  borderRadius: 16,
                   backgroundColor:
                     colorScheme === "dark" ? "#1F2937" : "#F3F4F6",
                 }}
               >
                 <ThemedView
                   style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                     backgroundColor:
                       colorScheme === "dark" ? "#1F2937" : "#F3F4F6",
                   }}
                 >
-                  <ThemedText
+                  <ThemedView
                     style={{
-                      fontSize: 20,
-                      fontWeight: "bold",
-                      marginBottom: 8,
+                      backgroundColor:
+                        colorScheme === "dark" ? "#1F2937" : "#F3F4F6",
                     }}
                   >
-                    {vehicle.plateNumber.toUpperCase()}
-                  </ThemedText>
-                  <ThemedText>
-                    Check-in: {new Date(vehicle.entryTime).toLocaleString()}
-                  </ThemedText>
-                  <ThemedText>
-                    Check-out: {new Date(vehicle.exitTime).toLocaleString()}
+                    <ThemedText
+                      style={{
+                        fontSize: 20,
+                        fontWeight: "bold",
+                        marginBottom: 8,
+                      }}
+                    >
+                      {vehicle.plateNumber.toUpperCase()}
+                    </ThemedText>
+                    <ThemedText>
+                      Check-in: {new Date(vehicle.entryTime).toLocaleString()}
+                    </ThemedText>
+                    <ThemedText>
+                      Check-out: {new Date(vehicle.exitTime).toLocaleString()}
+                    </ThemedText>
+                  </ThemedView>
+                  <ThemedText
+                    style={{
+                      color: colorScheme === "dark" ? "#818CF8" : "#4F46E5",
+                      fontWeight: "600",
+                      fontSize: 20,
+                    }}
+                  >
+                    {vehicle.fee} vnđ
                   </ThemedText>
                 </ThemedView>
-                <ThemedText
-                  style={{
-                    color: colorScheme === "dark" ? "#818CF8" : "#4F46E5",
-                    fontWeight: "600",
-                    fontSize: 20,
-                  }}
-                >
-                  {vehicle.fee} vnđ
-                </ThemedText>
               </ThemedView>
-            </ThemedView>
-          ))}
+            ))}
         </ScrollView>
       </ThemedView>
     </View>

@@ -139,6 +139,23 @@ export default function HomeScreen() {
               >
                 {user?.money} VNĐ
               </ThemedText>
+              <TouchableOpacity
+                onPress={() => dispatch(getUserAction())}
+                style={{
+                  alignSelf: "center",
+                  marginTop: 8,
+                  paddingVertical: 6,
+                  paddingHorizontal: 18,
+                  backgroundColor: "#10B981",
+                  borderRadius: 8,
+                }}
+              >
+                <ThemedText
+                  style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}
+                >
+                  Reload
+                </ThemedText>
+              </TouchableOpacity>
             </ThemedView>
 
             <ThemedView style={{ flexDirection: "row", gap: 16 }}>

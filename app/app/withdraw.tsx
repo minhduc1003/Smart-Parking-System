@@ -91,7 +91,7 @@ const WithdrawScreen = () => {
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Amount</Text>
           <View style={styles.inputWrapper}>
-            <Text style={styles.currencySymbol}>$</Text>
+            <Text style={styles.currencySymbol}>VNĐ</Text>
             <TextInput
               style={styles.input}
               placeholder="Enter withdrawal amount"

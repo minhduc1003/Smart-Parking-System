@@ -98,6 +98,7 @@ unsigned short sIR_Detect(short sWhichSensor) {
 
 void setup() {
   Serial.begin(115200);
+  unsigned long startAttemptTime = millis();
   WiFi.begin(ssid, password);
   Wire.begin();
   
@@ -117,7 +118,7 @@ void setup() {
   pinMode(led_CAR4, OUTPUT);
   pinMode(led_ALL, OUTPUT);
   
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED&& millis() - startAttemptTime < 5000) {
     delay(500);
     Serial.print(".");
   }
@@ -146,14 +147,16 @@ void setup() {
   lcd3.setCursor(0, 0);
   lcd3.print("LCD 3 Initialized");
   
-  Serial.print("ESP8266 MAC Address: ");
-  Serial.println(WiFi.macAddress());
+  if (WiFi.status() == WL_CONNECTED) {
   webSocket.begin(websocket_server, websocket_port);
   webSocket.onEvent(webSocketEvent);
+  }
 }
 
 void loop() {
-  webSocket.loop(); 
+  if (WiFi.status() == WL_CONNECTED) {
+    webSocket.loop(); 
+  }
   unsigned short usSensorStatus[CAR_SLOT] = {0, 0, 0, 0};
   short sCar_Slot = CAR_SLOT;
   
@@ -195,8 +198,9 @@ void loop() {
     }
   }
   statusMessage += "]}";
-  
-  webSocket.sendTXT(statusMessage);
+  if (WiFi.status() == WL_CONNECTED) {
+    webSocket.sendTXT(statusMessage);
+  }
   vLCD_Display2(sCar_Slot2, usSensorStatus2);  
   delay(500);
 }

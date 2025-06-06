@@ -73,6 +73,7 @@ void setup() {
   unsigned long startAttemptTime = millis();
 
   while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
+    barrierServo.write(180);
     delay(100);
   }
 
@@ -96,6 +97,10 @@ void setup() {
 }
 
 void loop() {
+  if (WiFi.status() != WL_CONNECTED) {
+    barrierServo.write(180);
+    ESP.restart();
+  }
   server.handleClient();
   static unsigned long lastTimeUpdate = 0;
 
