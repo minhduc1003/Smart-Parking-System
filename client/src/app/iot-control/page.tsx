@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import ESP32CamRecorder from "@/components/ESP32CamRecorder";
 
 const IotControl = () => {
   const [lightStatus, setLightStatus] = useState(false);
@@ -137,12 +136,18 @@ const IotControl = () => {
               </div>
               {status && (
                 <motion.div
-                  className=" w-[320px] h-[240px] mx-auto relative rounded-xl shadow-lg"
+                  className="relative w-[320px] h-[240px] mx-auto overflow-hidden rounded-xl shadow-lg"
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <ESP32CamRecorder />
+                  <iframe
+                    src="http://172.20.10.4"
+                    className="absolute top-0 left-0 w-full h-full"
+                    frameBorder={0}
+                    allowFullScreen
+                    style={{ border: "none" }}
+                  />
                 </motion.div>
               )}
             </motion.div>
