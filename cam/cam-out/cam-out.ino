@@ -71,8 +71,9 @@ void setup() {
   Serial.begin(115200);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   unsigned long startAttemptTime = millis();
-
-  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
+  barrierServo.setPeriodHertz(50);
+  barrierServo.attach(SERVO_PIN, 1000, 2000);
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 5000) {
     barrierServo.write(180);
     delay(100);
   }
@@ -84,8 +85,7 @@ void setup() {
   pinMode(IR_SENSOR_IN, INPUT_PULLUP);
   pinMode(IR_SENSOR_OUT, INPUT_PULLUP);
 
-  barrierServo.setPeriodHertz(50);
-  barrierServo.attach(SERVO_PIN, 1000, 2000);
+
   barrierServo.write(0);
 
   setupCamera();
