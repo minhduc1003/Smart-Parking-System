@@ -142,7 +142,7 @@ const IotControl = () => {
                   transition={{ duration: 0.3 }}
                 >
                   <iframe
-                    src="http://172.20.10.4"
+                    src="http://172.20.10.5"
                     className="absolute top-0 left-0 w-full h-full"
                     frameBorder={0}
                     allowFullScreen

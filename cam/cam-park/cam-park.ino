@@ -5,11 +5,9 @@
 #include "SD_MMC.h"
 #include "time.h"
 
-// WiFi credentials
 #define WIFI_SSID "minhduc03"
 #define WIFI_PASSWORD "duc23102003"
 
-// Camera pin config (AI Thinker)
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
@@ -32,21 +30,16 @@ File videoFile;
 bool isRecording = true;
 
 unsigned long lastSplitTime = 0;
-const unsigned long splitInterval = 1 * 60 * 1000; // 5 phút
-const size_t maxFileSize = 5 * 1024 * 1024;         // 5MB
+const unsigned long splitInterval = 1 * 60 * 1000;
+const size_t maxFileSize = 5 * 1024 * 1024;         
 
-// --- Time Sync (GMT+7) ---
 void setupTime() {
-  configTime(7 * 3600, 0, "pool.ntp.org", "time.nist.gov"); // GMT+7
-  Serial.print("Syncing time");
+  configTime(7 * 3600, 0, "pool.ntp.org", "time.nist.gov"); 
   while (time(nullptr) < 100000) {
-    Serial.print(".");
     delay(500);
   }
-  Serial.println(" OK");
 }
 
-// --- Tạo tên file theo thời gian ---
 String getTimestampedFilename() {
   time_t now = time(nullptr);
   struct tm *timeinfo = localtime(&now);
@@ -57,19 +50,12 @@ String getTimestampedFilename() {
   return String(filename);
 }
 
-// --- Tạo file mới ---
 void createNewVideoFile() {
   if (videoFile) videoFile.close();
   String filename = getTimestampedFilename();
   videoFile = SD_MMC.open(filename, FILE_WRITE);
-  if (videoFile) {
-    Serial.println("Recording to: " + filename);
-  } else {
-    Serial.println("⚠ Failed to open new video file.");
-  }
 }
 
-// --- Kiểm tra chia file ---
 void checkSplitConditions() {
   if (millis() - lastSplitTime > splitInterval || 
       (videoFile && videoFile.size() >= maxFileSize)) {
@@ -78,7 +64,6 @@ void checkSplitConditions() {
   }
 }
 
-// --- Ghi từng chunk vào file SD ---
 void writeChunkedToSD(const uint8_t* data, size_t len) {
   const size_t CHUNK_SIZE = 1024;
   size_t offset = 0;
@@ -87,10 +72,9 @@ void writeChunkedToSD(const uint8_t* data, size_t len) {
     videoFile.write(data + offset, toWrite);
     offset += toWrite;
   }
-  videoFile.flush(); // đảm bảo đã ghi ra thẻ
+  videoFile.flush();
 }
 
-// --- Khởi tạo camera ---
 void setupCamera() {
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -126,12 +110,10 @@ void setupCamera() {
 
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
-    Serial.printf("Camera init failed: 0x%x", err);
     while (true);
   }
 }
 
-// --- Xử lý stream MJPEG ---
 void handleStream() {
   WiFiClient client = server.client();
   client.println("HTTP/1.1 200 OK");
@@ -141,13 +123,11 @@ void handleStream() {
   while (client.connected()) {
     camera_fb_t *fb = esp_camera_fb_get();
     if (!fb) {
-      Serial.println("Camera capture failed");
       continue;
     }
 
     client.printf("--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n", fb->len);
     
-    // Write frame data in chunks of 512 bytes
     const size_t CHUNK_SIZE = 512;
     size_t offset = 0;
     while (offset < fb->len) {
@@ -164,48 +144,37 @@ void handleStream() {
 
     esp_camera_fb_return(fb);
     checkSplitConditions();
-    delay(100); // 10 fps
+    delay(100);
   }
 }
 
-// --- SETUP ---
 void setup() {
-  Serial.begin(115200);
+  pinMode(4, OUTPUT);
+  digitalWrite(4, LOW);  
 
-  // Kết nối WiFi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting WiFi");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print(".");
   }
-  Serial.println("\nWiFi connected: " + WiFi.localIP().toString());
 
-  // Sync thời gian & camera
   setupTime();
   setupCamera();
 
-  // Khởi tạo SD
   if (!SD_MMC.begin()) {
-    Serial.println("⚠ SD Card Mount Failed");
     return;
   }
 
   if (SD_MMC.cardType() == CARD_NONE) {
-    Serial.println("⚠ No SD card");
     return;
   }
 
-  // Ghi file đầu tiên
   createNewVideoFile();
   lastSplitTime = millis();
 
   server.on("/", handleStream);
   server.begin();
-  Serial.println("✅ Stream: http://" + WiFi.localIP().toString());
 }
 
-// --- LOOP ---
 void loop() {
   server.handleClient();
 }
