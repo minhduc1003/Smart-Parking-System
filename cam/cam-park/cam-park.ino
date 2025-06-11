@@ -24,10 +24,6 @@
 #define VSYNC_GPIO_NUM    25
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
-#define FLASH_GPIO_NUM 4  // Chân GPIO để điều khiển đèn flash
-#define FLASH_BRIGHTNESS 0  // Độ sáng của đèn flash (từ 0 đến 255)
-const int freq = 5000;  // Tần số PWM
-const int ledChannel = LEDC_CHANNEL_6;  // Kênh PWM
 
 
 WebServer server(80);
@@ -70,7 +66,7 @@ void checkSplitConditions() {
 }
 
 void writeChunkedToSD(const uint8_t* data, size_t len) {
-  const size_t CHUNK_SIZE = 1024;
+  const size_t CHUNK_SIZE = 512;
   size_t offset = 0;
   while (offset < len) {
     size_t toWrite = min(CHUNK_SIZE, len - offset);
@@ -117,8 +113,6 @@ void setupCamera() {
   if (err != ESP_OK) {
     while (true);
   }
-    ledcSetup(ledChannel, freq, 8);  // Cấu hình tần số và độ phân giải
-  ledcAttachPin(FLASH_GPIO_NUM, ledChannel);  // Gắn PWM vào chân GPIO của đèn flash
 }
 
 void handleStream() {
@@ -126,13 +120,12 @@ void handleStream() {
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: multipart/x-mixed-replace; boundary=frame");
   client.println();
-
   while (client.connected()) {
     camera_fb_t *fb = esp_camera_fb_get();
     if (!fb) {
       continue;
     }
-    ledcWrite(ledChannel, FLASH_BRIGHTNESS);
+
     client.printf("--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n", fb->len);
     
     const size_t CHUNK_SIZE = 512;
@@ -165,13 +158,7 @@ void setup() {
   setupTime();
   setupCamera();
 
-  if (!SD_MMC.begin()) {
-    return;
-  }
-
-  if (SD_MMC.cardType() == CARD_NONE) {
-    return;
-  }
+  SD_MMC.begin("/sdcard",true);
 
   createNewVideoFile();
   lastSplitTime = millis();
