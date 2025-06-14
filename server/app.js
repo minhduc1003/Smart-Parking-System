@@ -18,19 +18,68 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+const Booking =
+  mongoose.models.Booking ||
+  mongoose.model(
+    "Booking",
+    new mongoose.Schema(
+      {
+        location: String,
+        slotIndex: Number,
+        userID: String,
+        createdAt: { type: Date, default: Date.now },
+      },
+      { collection: "bookings" }
+    )
+  );
 const wss = new WebSocket.Server({ port: wsPort });
 wss.on("connection", (ws) => {
   ws.on("message", async (message) => {
     const data = JSON.parse(message);
+    if (data.action === "slot-status") {
+      // Xoá các booking quá 1 phút
+      const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+      await Booking.deleteMany({ createdAt: { $lt: oneMinuteAgo } });
+
+      const bookings = await Booking.find({});
+      const mergedSlots = [...data.slots];
+      const mergedSlots2 = [...data.slots2];
+      const bookedUsers = {
+        "54 Triều Khúc (DH CNGTVT)": {},
+        "32 Nguyễn Công Chứ": {},
+      };
+
+      bookings.forEach((b) => {
+        if (
+          b.location === "54 Triều Khúc (DH CNGTVT)" &&
+          b.slotIndex < mergedSlots.length
+        ) {
+          mergedSlots[b.slotIndex] = 1;
+          bookedUsers["54 Triều Khúc (DH CNGTVT)"][b.slotIndex] = b.userID;
+        } else if (
+          b.location === "32 Nguyễn Công Chứ" &&
+          b.slotIndex < mergedSlots2.length
+        ) {
+          mergedSlots2[b.slotIndex] = 1;
+          bookedUsers["32 Nguyễn Công Chứ"][b.slotIndex] = b.userID;
+        }
+      });
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(
+            JSON.stringify({
+              type: "slot-update",
+              slots: mergedSlots,
+              slots2: mergedSlots2,
+              bookedUsers: bookedUsers,
+            })
+          );
+        }
+      });
+    }
     wss.clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(
-          JSON.stringify({
-            type: "slot-update",
-            slots: data.slots,
-            slots2: data.slots2,
-          })
-        );
         if (data.type === "lightStatus") {
           client.send(
             JSON.stringify({
@@ -314,6 +363,67 @@ app.post("/out-not-found", async (req, res) => {
       );
     }
   });
+});
+app.post("/api/bookings", async (req, res) => {
+  const { location, slotIndex, userID } = req.body;
+  try {
+    const existing = await Booking.findOne({ location, slotIndex });
+    if (existing) {
+      return res.status(400).json({ message: "Slot already booked" });
+    }
+
+    // Find user and check balance
+    const user = await User.findById(userID);
+    const bookingFee = 5000; // Set your booking fee here
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    if (user.money < bookingFee) {
+      return res.status(400).json({ message: "Insufficient balance" });
+    }
+
+    // Deduct fee and save user
+    user.money -= bookingFee;
+    await user.save();
+
+    const newBooking = await Booking.create({ location, slotIndex, userID });
+    console.log("✅ Booking saved:", newBooking);
+
+    res.status(200).json({
+      message: "Booking successful",
+      booking: newBooking,
+      newBalance: user.money,
+    });
+  } catch (error) {
+    console.error("❌ Booking error:", error);
+    res.status(500).json({ message: "Booking failed", error });
+  }
+});
+
+app.delete("/api/bookings", async (req, res) => {
+  const { location, slotIndex, userID } = req.body;
+  try {
+    const booking = await Booking.findOne({ location, slotIndex });
+
+    if (!booking) {
+      return res.status(404).json({ message: "No booking found" });
+    }
+
+    if (booking.userID !== userID) {
+      return res
+        .status(403)
+        .json({ message: "You are not allowed to cancel this booking" });
+    }
+
+    await Booking.deleteOne({ _id: booking._id });
+    console.log("🗑️ Booking cancelled:", booking);
+
+    res.status(200).json({ message: "Booking cancelled" });
+  } catch (error) {
+    console.error("❌ Cancel booking error:", error);
+    res.status(500).json({ message: "Cancel booking failed", error });
+  }
 });
 
 mongoose

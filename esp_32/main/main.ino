@@ -162,11 +162,6 @@ void loop() {
   
   for(short i = 0; i < CAR_SLOT; i++) {
     usSensorStatus[i] = sIR_Detect(gsArray_Sensor[i]);
-    if (usSensorStatus[i] == 1) {
-      digitalWrite(gsArray_LED[i], HIGH);
-    } else {
-      digitalWrite(gsArray_LED[i], LOW);
-    }
   }
   
   String statusMessage = "{\"action\":\"slot-status\",\"slots\":[";
@@ -183,11 +178,6 @@ void loop() {
   
   for(short i = 0; i < CAR_SLOT2; i++) {
     usSensorStatus2[i] = sIR_Detect(gsArray_Sensor2[i]);
-    if (usSensorStatus2[i] == 1) {
-      digitalWrite(gsArray_LED2[i], HIGH);
-    } else {
-      digitalWrite(gsArray_LED2[i], LOW);
-    }
   }
   
   statusMessage += "],\"slots2\":[";
@@ -220,7 +210,33 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
     case WStype_TEXT:
       Serial.print("Received message: ");
       Serial.println((char*)payload);
-      
+      if (message.indexOf("\"type\":\"slot-update\"") >= 0) {
+        // Parse slots
+        int slotsIndex = message.indexOf("\"slots\":[") + 9;
+        int slotsEnd = message.indexOf("]", slotsIndex);
+        String slotsStr = message.substring(slotsIndex, slotsEnd);
+        int slotPos = 0;
+        for (int i = 0; i < slotsStr.length() && slotPos < CAR_SLOT; i++) {
+          if (slotsStr[i] == '0' || slotsStr[i] == '1') {
+            int slotVal = slotsStr[i] - '0';
+            digitalWrite(gsArray_LED[slotPos], slotVal ? HIGH : LOW);
+            slotPos++;
+          }
+        }
+
+        // Parse slots2
+        int slots2Index = message.indexOf("\"slots2\":[") + 10;
+        int slots2End = message.indexOf("]", slots2Index);
+        String slots2Str = message.substring(slots2Index, slots2End);
+        int slot2Pos = 0;
+        for (int i = 0; i < slots2Str.length() && slot2Pos < CAR_SLOT2; i++) {
+          if (slots2Str[i] == '0' || slots2Str[i] == '1') {
+            int slotVal = slots2Str[i] - '0';
+            digitalWrite(gsArray_LED2[slot2Pos], slotVal ? HIGH : LOW);
+            slot2Pos++;
+          }
+        }
+      }
       if (message.indexOf("\"type\":\"light-status\"") >= 0 && message.indexOf("\"lightStatus\":") >= 0) {
         int statusIndex = message.indexOf("\"lightStatus\":") + 15;
         String statusValue = message.substring(statusIndex-1, statusIndex + 3);
